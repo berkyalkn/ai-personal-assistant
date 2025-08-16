@@ -1,14 +1,14 @@
 # Personal AI Assistant
 
 
-A conversational AI assistant that connects to your personal services like Google and Apple Calendar to help you manage your schedule, answer your questions via web search, and hold natural conversations.
+A conversational AI assistant that connects to your Google Calendar to help you manage your schedule, answers your questions via web search, and holds natural conversations.
 
 ---
 
 ## Features
 
 - **Conversational AI Core:** Powered by LangGraph and Groq's Llama 3 for stateful, low-latency conversations.
-- **Unified Calendar Tool:** Intelligently checks both Google Calendar and Apple iCloud with a single tool, providing a unified schedule.
+- **Google Calendar Integration:** Checks your primary Google Calendar to keep you informed about your schedule.
 - **General Knowledge Q&A:** Uses Tavily Search to answer questions about real-time events, facts, and general knowledge.
 - **Hybrid Functionality:** Can differentiate between a general chat and a specific task, using tools only when necessary.
 - **Interactive Notebook Environment:** All development and interaction happens within a single, easy-to-use `assistant.ipynb` file.
@@ -58,29 +58,10 @@ GROQ_API_KEY="gsk_YourGroqApiKey"
 # Tavily API Key for web search
 TAVILY_API_KEY="tvly-YourTavilyApiKey"
 
-# Apple iCloud Credentials (see step 4)
-APPLE_ID_EMAIL="your-email@icloud.com"
-APP_SPECIFIC_PASSWORD="xxxx-xxxx-xxxx-xxxx"
 ```
 
-**4. Configure Apple Calendar (iCloud) Access:**
 
-- The assistant uses an **App-Specific Password for security**. You do NOT use your main Apple ID password in the `.env` file.
-
-- Go to appleid.apple.com and sign in.
-
-- Navigate to the "App-Specific Passwords" section.
-
-- Click "Generate an app-specific password".
-
-- Give it a label, like "Personal Assistant", and create the password.
-
-- Apple will generate a password in **xxxx-xxxx-xxxx-xxxx** format.
-
-- Copy this password and paste it into the APP_SPECIFIC_PASSWORD field in your .env file.
-
-
-**5. Configure Google Calendar Access:**
+**4. Configure Google Calendar Access:**
 
 - Go to the [Google Cloud Console](https://console.cloud.google.com/)
 
@@ -117,7 +98,7 @@ Your assistant is ready. You can now start chatting.
    Type 'quit' or 'exit' to end the conversation.
 -------------------------
 You: What's on my schedule for tomorrow?
-Assistant: Let me check your calendars for you... You have one event tomorrow: 'Interview' at 10:00 AM [Google].
+Assistant: Let me check your calendar... You have one event tomorrow: 'Project Meeting' at 10:00 AM.
 
 You: What is the capital of Japan?
 Assistant: The capital of Japan is Tokyo.
