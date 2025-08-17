@@ -8,7 +8,11 @@ A conversational AI assistant that connects to your Google Calendar to help you 
 ## Features
 
 - **Conversational AI Core:** Powered by LangGraph and Groq's Llama 3 for stateful, low-latency conversations.
-- **Google Calendar Integration:** Checks your primary Google Calendar to keep you informed about your schedule.
+- **Advanced Google Calendar Integration:**
+
+  + **Read Events with NLU:** Understands natural language queries for dates and ranges like "tomorrow", "next Friday", or "in the next 3 days".
+
+  + **Create Events:** Schedule new appointments and meetings directly through conversation (e.g., "Add a meeting tomorrow at 2 PM for an hour").
 - **General Knowledge Q&A:** Uses Tavily Search to answer questions about real-time events, facts, and general knowledge.
 - **Hybrid Functionality:** Can differentiate between a general chat and a specific task, using tools only when necessary.
 - **Interactive Notebook Environment:** All development and interaction happens within a single, easy-to-use `assistant.ipynb` file.
@@ -79,6 +83,8 @@ TAVILY_API_KEY="tvly-YourTavilyApiKey"
 
 - Rename the downloaded file to `credentials.json` and place it in the root of your project directory.
 
+`Note:` The first time you run a calendar command, you will be prompted to authorize the application in your browser. This will generate a token.json file. This is a one-time process.
+
 ---
 
 ## How to Run
@@ -98,7 +104,16 @@ Your assistant is ready. You can now start chatting.
    Type 'quit' or 'exit' to end the conversation.
 -------------------------
 You: What's on my schedule for tomorrow?
-Assistant: Let me check your calendar... You have one event tomorrow: 'Project Meeting' at 10:00 AM.
+Assistant: You have a 'Doctor' appointment scheduled for tomorrow at 3:30 AM.
+
+You: Can you show me my events for the next 3 days?
+Assistant: Here is your schedule for the next 3 days:
+- August 18, 2025: Doctor at 3:30 AM
+- August 19, 2025: Dinner at 8:00 PM
+- August 20, 2025: Dentist at 9:30 AM
+
+You: Add a 'Breakfast' to my calendar for next Friday at 11 AM, and make it 90 minutes long.
+Assistant: Your 'Breakfast' has been successfully scheduled for Friday, August 22, 2025, from 11:00 AM to 12:30 PM.
 
 You: What is the capital of Japan?
 Assistant: The capital of Japan is Tokyo.
