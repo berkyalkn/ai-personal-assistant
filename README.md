@@ -1,20 +1,21 @@
 # Personal AI Assistant
 
 
-A conversational AI assistant that connects to your Google Calendar to help you manage your schedule, answers your questions via web search, and holds natural conversations.
+A conversational AI assistant that connects to your Google Calendar to help you manage your schedule, answers your questions via web search, and holds natural conversations with persistent memory.
 
 ---
 
 ## Features
 
 - **Conversational AI Core:** Powered by LangGraph and Groq's Llama 3 for stateful, low-latency conversations.
-- **Advanced Google Calendar Integration:**
 
+- **Persistent Conversation Memory:** Utilizes LangGraph's checkpointer system with SQLite to remember conversations, allowing you to stop and resume your session at any time.
+- **Advanced Google Calendar Integration:**
   + **Read Events with NLU:** Understands natural language queries for dates and ranges like "tomorrow", "next Friday", or "in the next 3 days".
 
   + **Create Events:** Schedule new appointments and meetings directly through conversation (e.g., "Add a meeting tomorrow at 2 PM for an hour").
 - **General Knowledge Q&A:** Uses Tavily Search to answer questions about real-time events, facts, and general knowledge.
-- **Hybrid Functionality:** Can differentiate between a general chat and a specific task, using tools only when necessary.
+- **Intelligent Tool Use:** Differentiates between chat and tasks, using tools only when necessary and asking clarifying questions for missing details.
 - **Interactive Notebook Environment:** All development and interaction happens within a single, easy-to-use `assistant.ipynb` file.
 
 ---
@@ -83,7 +84,7 @@ TAVILY_API_KEY="tvly-YourTavilyApiKey"
 
 - Rename the downloaded file to `credentials.json` and place it in the root of your project directory.
 
-`Note:` The first time you run a calendar command, you will be prompted to authorize the application in your browser. This will generate a token.json file. This is a one-time process.
+**Note:** The first time you run a calendar command, you will be prompted to authorize the application in your browser. This will generate a `token.json` file. This is a one-time process.
 
 ---
 
@@ -95,6 +96,8 @@ TAVILY_API_KEY="tvly-YourTavilyApiKey"
 
 3- The final cell will start an interactive chat loop. You can start talking to your assistant directly in the notebook's output.
 
+4- To continue a previous conversation, ensure the thread_id in the code is the same. To start a new one, change the thread_id.
+
 --- 
 
 ## Example Usage
@@ -103,18 +106,17 @@ TAVILY_API_KEY="tvly-YourTavilyApiKey"
 Your assistant is ready. You can now start chatting.
    Type 'quit' or 'exit' to end the conversation.
 -------------------------
-You: What's on my schedule for tomorrow?
-Assistant: You have a 'Doctor' appointment scheduled for tomorrow at 3:30 AM.
+You: Hi, my name is Berkay.
+Assistant: Nice to meet you, Berkay! How can I assist you today?
 
-You: Can you show me my events for the next 3 days?
-Assistant: Here is your schedule for the next 3 days:
-- August 18, 2025: Doctor at 3:30 AM
-- August 19, 2025: Dinner at 8:00 PM
-- August 20, 2025: Dentist at 9:30 AM
+You: Can you add a 'Strategy Meeting' to my calendar for next Monday at 3 PM? It's at the 'Main Office' and will last 1 hour. Please add a description: 'Final review of the Q4 plan.'
 
-You: Add a 'Breakfast' to my calendar for next Friday at 11 AM, and make it 90 minutes long.
-Assistant: Your 'Breakfast' has been successfully scheduled for Friday, August 22, 2025, from 11:00 AM to 12:30 PM.
+Assistant: I've successfully scheduled the 'Strategy Meeting' for next Monday at 3:00 PM at the 'Main Office'. The event is set for 1 hour and includes the description 'Final review of the Q4 plan.'
 
-You: What is the capital of Japan?
-Assistant: The capital of Japan is Tokyo.
-```
+(You can now restart the script, and the assistant will remember the conversation)
+
+You: Hi again.
+Assistant: Hi again, Berkay! How can I help you?
+
+You: What were the details of that meeting I scheduled for Monday?
+Assistant: The 'Strategy Meeting' on Monday is at 3:00 PM at the 'Main Office'. The description is 'Final review of the Q4 plan.'
