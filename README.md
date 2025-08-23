@@ -1,7 +1,7 @@
 # Personal AI Assistant
 
 
-A conversational AI assistant that connects to your Google Calendar to help you manage your schedule, answers your questions via web search, and holds natural conversations with persistent memory.
+A conversational AI assistant that connects to your Google Calendar to help you create, read and delete events, answer your questions via web search, and hold natural conversations with persistent memory.
 
 ---
 
@@ -14,6 +14,8 @@ A conversational AI assistant that connects to your Google Calendar to help you 
   + **Read Events with NLU:** Understands natural language queries for dates and ranges like "tomorrow", "next Friday", or "in the next 3 days".
 
   + **Create Events:** Schedule new appointments and meetings directly through conversation (e.g., "Add a meeting tomorrow at 2 PM for an hour").
+
+  + **Delete Events:** Cancel existing appointments using natural language commands. 
 - **General Knowledge Q&A:** Uses Tavily Search to answer questions about real-time events, facts, and general knowledge.
 - **Intelligent Tool Use:** Differentiates between chat and tasks, using tools only when necessary and asking clarifying questions for missing details.
 - **Interactive Notebook Environment:** All development and interaction happens within a single, easy-to-use `assistant.ipynb` file.
@@ -106,17 +108,14 @@ TAVILY_API_KEY="tvly-YourTavilyApiKey"
 Your assistant is ready. You can now start chatting.
    Type 'quit' or 'exit' to end the conversation.
 -------------------------
-You: Hi, my name is Berkay.
-Assistant: Nice to meet you, Berkay! How can I assist you today?
+You: What's on my schedule for tomorrow?
+Assistant: You have a 'Dentist Appointment' scheduled for tomorrow at 11:00 AM.
 
-You: Can you add a 'Strategy Meeting' to my calendar for next Monday at 3 PM? It's at the 'Main Office' and will last 1 hour. Please add a description: 'Final review of the Q4 plan.'
+You: Can you add a 'Family Lunch' at 1 PM tomorrow at 'Yedi Mehmet'?
+Assistant: Of course. For how long should I schedule the lunch?
 
-Assistant: I've successfully scheduled the 'Strategy Meeting' for next Monday at 3:00 PM at the 'Main Office'. The event is set for 1 hour and includes the description 'Final review of the Q4 plan.'
+You: Make it 90 minutes.
+Assistant: Done. I've added 'Family Lunch' to your calendar for tomorrow at 1:00 PM at 'Yedi Mehmet', lasting 90 minutes.
 
-(You can now restart the script, and the assistant will remember the conversation)
-
-You: Hi again.
-Assistant: Hi again, Berkay! How can I help you?
-
-You: What were the details of that meeting I scheduled for Monday?
-Assistant: The 'Strategy Meeting' on Monday is at 3:00 PM at the 'Main Office'. The description is 'Final review of the Q4 plan.'
+You: Actually, I need to cancel the Dentist Appointment tomorrow.
+Assistant: No problem. I have successfully cancelled and removed the 'Dentist Appointment' for tomorrow from your calendar.
