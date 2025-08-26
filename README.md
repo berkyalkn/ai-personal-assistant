@@ -1,7 +1,7 @@
 # Personal AI Assistant
 
 
-A conversational AI assistant that connects to your Google Calendar to help you create, read and delete events, answer your questions via web search, and hold natural conversations with persistent memory.
+A conversational AI assistant that connects to your Google Calendar to help you create, read, update and delete events, answer your questions via web search, and hold natural conversations with persistent memory.
 
 ---
 
@@ -10,15 +10,34 @@ A conversational AI assistant that connects to your Google Calendar to help you 
 - **Conversational AI Core:** Powered by LangGraph and Groq's Llama 3 for stateful, low-latency conversations.
 
 - **Persistent Conversation Memory:** Utilizes LangGraph's checkpointer system with SQLite to remember conversations, allowing you to stop and resume your session at any time.
+
 - **Advanced Google Calendar Integration:**
-  + **Read Events with NLU:** Understands natural language queries for dates and ranges like "tomorrow", "next Friday", or "in the next 3 days".
+  + **Read Events:** Understands natural language queries for dates and ranges like "tomorrow" or "next Friday".
 
-  + **Create Events:** Schedule new appointments and meetings directly through conversation (e.g., "Add a meeting tomorrow at 2 PM for an hour").
+  + **Create Events:** Schedules new appointments, automatically checking for conflicts before adding them.
 
-  + **Delete Events:** Cancel existing appointments using natural language commands. 
+  + **Update Events:** Modifies existing events with simple commands like "Move my meeting to 3 PM".
+
+  + **Delete Events:** Cancels appointments with a confirmation step to prevent accidents.
+
 - **General Knowledge Q&A:** Uses Tavily Search to answer questions about real-time events, facts, and general knowledge.
 - **Intelligent Tool Use:** Differentiates between chat and tasks, using tools only when necessary and asking clarifying questions for missing details.
 - **Interactive Notebook Environment:** All development and interaction happens within a single, easy-to-use `assistant.ipynb` file.
+
+---
+
+## Technologies Used
+
+- **Core Framework:** LangChain & LangGraph for building the stateful agent.
+- **LLM:** Llama 3, accessed via the Groq API for high-speed, low-latency responses.
+- **External Services:**
+  - **Google Calendar API:** For all calendar-related operations (create, read, update, delete).
+  - **Tavily Search API:** For real-time web search and general knowledge questions.
+- **Key Python Libraries:**
+  - `google-api-python-client` & `google-auth-oauthlib` for Google API authentication.
+  - `Pydantic` for robust data validation and modeling.
+  - `python-dotenv` for secure management of API keys.
+- **Database:** SQLite, used by LangGraph's checkpointer for persistent conversation memory.
 
 ---
 
@@ -117,5 +136,11 @@ Assistant: Of course. For how long should I schedule the lunch?
 You: Make it 90 minutes.
 Assistant: Done. I've added 'Family Lunch' to your calendar for tomorrow at 1:00 PM at 'Yedi Mehmet', lasting 90 minutes.
 
-You: Actually, I need to cancel the Dentist Appointment tomorrow.
-Assistant: No problem. I have successfully cancelled and removed the 'Dentist Appointment' for tomorrow from your calendar.
+You: Actually, can you move the Family Lunch to 1:30 PM instead?
+Assistant: No problem. The 'Family Lunch' has been rescheduled to start at 1:30 PM.
+
+You: Great. Now, please cancel the Dentist Appointment.
+Assistant: I found the 'Dentist Appointment' for tomorrow. Are you sure you want to cancel it?
+
+You: Yes, please.
+Assistant: The 'Dentist Appointment' has been successfully removed from your calendar.
