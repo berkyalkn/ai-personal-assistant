@@ -1,7 +1,7 @@
 # Personal AI Assistant
 
 
-A conversational AI assistant that connects to your Google Calendar to help you create, read, update and delete events, answer your questions via web search, and hold natural conversations with persistent memory.
+A conversational AI assistant that connects to your Google services to help you manage your calendar, read and summarize your emails, answer questions via web search, and hold natural conversations with persistent memory.
 
 ---
 
@@ -20,8 +20,16 @@ A conversational AI assistant that connects to your Google Calendar to help you 
 
   + **Delete Events:** Cancels appointments with a confirmation step to prevent accidents.
 
+- **Gmail Integration:**
+
+  + **Read & Summarize:** Reads emails from your inbox and provides concise summaries.
+
+  + **Intelligent Filtering:** Understands requests to filter emails by sender, status (unread/read), and time range (e.g., "last 2 days").
+
 - **General Knowledge Q&A:** Uses Tavily Search to answer questions about real-time events, facts, and general knowledge.
+
 - **Intelligent Tool Use:** Differentiates between chat and tasks, using tools only when necessary and asking clarifying questions for missing details.
+
 - **Interactive Notebook Environment:** All development and interaction happens within a single, easy-to-use `assistant.ipynb` file.
 
 ---
@@ -31,13 +39,15 @@ A conversational AI assistant that connects to your Google Calendar to help you 
 - **Core Framework:** LangChain & LangGraph for building the stateful agent.
 - **LLM:** Llama 3, accessed via the Groq API for high-speed, low-latency responses.
 - **External Services:**
-  - **Google Calendar API:** For all calendar-related operations (create, read, update, delete).
-  - **Tavily Search API:** For real-time web search and general knowledge questions.
+  - Google Calendar API
+  - Google Gmail API
+  - Tavily Search API
 - **Key Python Libraries:**
   - `google-api-python-client` & `google-auth-oauthlib` for Google API authentication.
   - `Pydantic` for robust data validation and modeling.
   - `python-dotenv` for secure management of API keys.
 - **Database:** SQLite, used by LangGraph's checkpointer for persistent conversation memory.
+
 
 ---
 
@@ -130,16 +140,19 @@ Your assistant is ready. You can now start chatting.
 You: What's on my schedule for tomorrow?
 Assistant: You have a 'Dentist Appointment' scheduled for tomorrow at 11:00 AM.
 
-You: Can you add a 'Family Lunch' at 1 PM tomorrow at 'Yedi Mehmet'?
-Assistant: Of course. For how long should I schedule the lunch?
-
-You: Make it 90 minutes.
-Assistant: Done. I've added 'Family Lunch' to your calendar for tomorrow at 1:00 PM at 'Yedi Mehmet', lasting 90 minutes.
+You: Can you add a 'Family Lunch' at 1 PM tomorrow at 'Yedi Mehmet' for 90 minutes?
+Assistant: Done. I've added 'Family Lunch' to your calendar for tomorrow at 1:00 PM.
 
 You: Actually, can you move the Family Lunch to 1:30 PM instead?
 Assistant: No problem. The 'Family Lunch' has been rescheduled to start at 1:30 PM.
 
-You: Great. Now, please cancel the Dentist Appointment.
+You: Great. By the way, are there any unread emails from 'Google'?
+Assistant: Let me check. Yes, you have one unread email from 'Google' with the subject 'Security alert'. The summary is that a new device has signed into your account.
+
+You: When did I receive that?
+Assistant: You received that email today, August 27, 2025.
+
+You: Okay, thanks. Please cancel the Dentist Appointment.
 Assistant: I found the 'Dentist Appointment' for tomorrow. Are you sure you want to cancel it?
 
 You: Yes, please.
