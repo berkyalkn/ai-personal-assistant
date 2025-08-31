@@ -3,48 +3,93 @@
 
 A conversational AI assistant that connects to your Google services to help you manage your calendar, read and summarize your emails, answer questions via web search, and hold natural conversations with persistent memory.
 
+This project is built upon an advanced Router Architecture, which intelligently delegates tasks to specialized expert agents rather than relying on a single monolithic agent.
+
 ---
 
-## Features
+## Architectural Features
+
+- **Advanced Agentic Architecture:** At the core of the project is a "Smart Router" that analyzes user requests and delegates the task to the correct expert: Calendar, Email, Search, or Conversational. This makes the system more modular, efficient, and scalable.
+
+- **Specialized Expert Agents:** Each task area (Calendar, Email, etc.) is handled by a dedicated "Expert Agent" that only knows about its own set of tools and rules. This increases accuracy and reduces errors.
+
+- **Safe, Multi-Step Workflows:** The agent can reliably handle complex, multi-turn tasks, such as requiring user confirmation before deleting a calendar event, ensuring a safe and predictable user experience.
+
+- **Persistent Conversation Memory:** Utilizes LangGraph's SQLite-based checkpointer system to remember conversations, allowing you to stop and resume your session at any time.
 
 - **Conversational AI Core:** Powered by LangGraph and Groq's Llama 3 for stateful, low-latency conversations.
 
-- **Persistent Conversation Memory:** Utilizes LangGraph's checkpointer system with SQLite to remember conversations, allowing you to stop and resume your session at any time.
-
 - **Advanced Google Calendar Integration:**
-  + **Read Events:** Understands natural language queries for dates and ranges like "tomorrow" or "next Friday".
 
-  + **Create Events:** Schedules new appointments, automatically checking for conflicts before adding them.
+  + **Natural Language Understanding:** Parses queries like "tomorrow at 4 PM" or "next week" into precise dates and times, powered by the `parsedatetime` library.
 
-  + **Update Events:** Modifies existing events with simple commands like "Move my meeting to 3 PM".
+   + **Intelligent Event Creation:** Automatically checks for scheduling conflicts before adding new events to your calendar.
 
-  + **Delete Events:** Cancels appointments with a confirmation step to prevent accidents.
+   + **Event Management:** Modifies existing events with simple commands like "Move my meeting to 5 PM" and deletes events with a confirmation step.
+  
 
 - **Gmail Integration:**
 
-  + **Read & Summarize:** Reads emails from your inbox and provides concise summaries.
+   + **Intelligent Filtering & Summarization:** Filters emails by sender, status (read/unread), and time range (e.g., "last 2 days") and summarizes their content.
 
-  + **Intelligent Filtering:** Understands requests to filter emails by sender, status (unread/read), and time range (e.g., "last 2 days").
+- **General Knowledge Q&A:** Uses the Tavily Search API to answer questions about real-time events, facts, and general knowledge.
 
-- **General Knowledge Q&A:** Uses Tavily Search to answer questions about real-time events, facts, and general knowledge.
-
-- **Intelligent Tool Use:** Differentiates between chat and tasks, using tools only when necessary and asking clarifying questions for missing details.
 
 - **Interactive Notebook Environment:** All development and interaction happens within a single, easy-to-use `assistant.ipynb` file.
+
+---
+
+## Architecture Diagram
+
+The assistant operates on a router-based agentic architecture. All user input is first evaluated by a "Smart Router" which then delegates the task to the appropriate specialized expert.
+
+```mermaid
+graph TD
+    UserInput(["User Input"]) --> Router{"Smart Router"};
+
+    Router -- route: 'calendar' --> CalendarAgent[Calendar Agent];
+    Router -- route: 'email' --> EmailAgent[Email Agent];
+    Router -- route: 'search' --> SearchAgent[Search Agent];
+    Router -- route: 'conversational' --> ConversationalAgent[Conversational Agent];
+
+    subgraph Calendar Workflow
+        direction LR
+        CalendarAgent -- "Needs Tool?" --> CalendarTools[Calendar Tools];
+        CalendarTools --> CalendarAgent;
+    end
+
+    subgraph Email Workflow
+        direction LR
+        EmailAgent -- "Needs Tool?" --> EmailTools[Email Tools];
+        EmailTools --> EmailAgent;
+    end
+
+    subgraph Search Workflow
+        direction LR
+        SearchAgent -- "Needs Tool?" --> SearchTools[Search Tools];
+        SearchTools --> SearchAgent;
+    end
+    
+    CalendarAgent -- "Final Answer" --> EndPoint([Response to User]);
+    EmailAgent -- "Final Answer" --> EndPoint;
+    SearchAgent -- "Final Answer" --> EndPoint;
+    ConversationalAgent --> EndPoint;
+```
 
 ---
 
 ## Technologies Used
 
 - **Core Framework:** LangChain & LangGraph for building the stateful agent.
-- **LLM:** Llama 3, accessed via the Groq API for high-speed, low-latency responses.
+- **LLM:** `llama-3.3-70b-versatile` via the Groq API for high-speed, low-latency responses
 - **External Services:**
   - Google Calendar API
   - Google Gmail API
   - Tavily Search API
 - **Key Python Libraries:**
   - `google-api-python-client` & `google-auth-oauthlib` for Google API authentication.
-  - `Pydantic` for robust data validation and modeling.
+  - `parsedatetime` for robust natural language date/time parsing.
+  - `Pydantic` for reliable data validation and modeling.
   - `python-dotenv` for secure management of API keys.
 - **Database:** SQLite, used by LangGraph's checkpointer for persistent conversation memory.
 
@@ -80,9 +125,9 @@ pip install -r requirements.txt
 
 **3. Create and Configure the `.env` File:**
 
-- In the root of the project, create a new file named .env.
+- In the root of the project, create a new file named `.env`.
 
--  Copy the contents of the .env.example file below into your new .env file and fill in your own credentials.
+-  Copy the contents of the `.env.example` file below into your new `.env` file and fill in your own credentials.
 
 
 **.env.example:**
@@ -97,13 +142,13 @@ TAVILY_API_KEY="tvly-YourTavilyApiKey"
 ```
 
 
-**4. Configure Google Calendar Access:**
+**4. Configure Google API Access:**
 
 - Go to the [Google Cloud Console](https://console.cloud.google.com/)
 
 - Create a new project.
 
-- Go to "APIs & Services" > "Library" and enable the "Google Calendar API".
+- Go to "APIs & Services" > "Library" and enable the "Google Calendar API" and the "Gmail API".
 
 - Go to "OAuth consent screen", select "External", and fill in the required app details. Add your own Google account as a "Test user".
 
@@ -140,20 +185,17 @@ Your assistant is ready. You can now start chatting.
 You: What's on my schedule for tomorrow?
 Assistant: You have a 'Dentist Appointment' scheduled for tomorrow at 11:00 AM.
 
-You: Can you add a 'Family Lunch' at 1 PM tomorrow at 'Yedi Mehmet' for 90 minutes?
-Assistant: Done. I've added 'Family Lunch' to your calendar for tomorrow at 1:00 PM.
-
-You: Actually, can you move the Family Lunch to 1:30 PM instead?
-Assistant: No problem. The 'Family Lunch' has been rescheduled to start at 1:30 PM.
-
-You: Great. By the way, are there any unread emails from 'Google'?
-Assistant: Let me check. Yes, you have one unread email from 'Google' with the subject 'Security alert'. The summary is that a new device has signed into your account.
-
-You: When did I receive that?
-Assistant: You received that email today, August 27, 2025.
-
-You: Okay, thanks. Please cancel the Dentist Appointment.
+You: Please cancel the Dentist Appointment.
 Assistant: I found the 'Dentist Appointment' for tomorrow. Are you sure you want to cancel it?
 
 You: Yes, please.
 Assistant: The 'Dentist Appointment' has been successfully removed from your calendar.
+
+You: Add a 'Team Lunch' to my calendar for next Friday at 1 PM.
+Assistant: Of course, and how long will the event be?
+
+You: It will be 90 minutes.
+Assistant: Done. I've added 'Team Lunch' to your calendar for next Friday at 1:00 PM.
+
+You: Are there any unread emails from 'Google'?
+Assistant: Let me check... Yes, you have one unread email from 'Google' with the subject 'Security alert', summarizing that a new device has signed into your account.
