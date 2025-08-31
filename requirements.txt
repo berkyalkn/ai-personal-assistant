@@ -1,0 +1,22 @@
+# Core AI and LangChain Framework
+langchain
+langgraph
+langchain-groq
+langchain-core
+langchain-tavily
+
+# Google API Services
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+
+# Utility Libraries
+python-dotenv
+pydantic
+tzlocal
+parsedatetime
+python-dateutil
+
+# For running in a notebook environment (optional but good to have)
+jupyter
+ipython
