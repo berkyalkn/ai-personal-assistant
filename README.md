@@ -1,7 +1,7 @@
 # Personal AI Assistant
 
 
-A conversational AI assistant that connects to your Google services to help you manage your calendar, read and summarize your emails, answer questions via web search, and hold natural conversations with persistent memory.
+A conversational AI assistant that connects to your Google services to help you manage your calendar, emails, and to-do lists, answer questions via web search, and hold natural conversations with persistent memory.
 
 This project is built upon an advanced Router Architecture, which intelligently delegates tasks to specialized expert agents rather than relying on a single monolithic agent.
 
@@ -9,11 +9,13 @@ This project is built upon an advanced Router Architecture, which intelligently 
 
 ## Architectural Features
 
-- **Advanced Agentic Architecture:** At the core of the project is a "Smart Router" that analyzes user requests and delegates the task to the correct expert: Calendar, Email, Search, or Conversational. This makes the system more modular, efficient, and scalable.
+- **Advanced Agentic Architecture:** At the core of the project is a "Smart Router" that analyzes user requests and delegates the task to the correct expert: Calendar, Email, Tasks, Search, or Conversational. This makes the system more modular, efficient, and scalable.
 
 - **Specialized Expert Agents:** Each task area (Calendar, Email, etc.) is handled by a dedicated "Expert Agent" that only knows about its own set of tools and rules. This increases accuracy and reduces errors.
 
 - **Safe, Multi-Step Workflows:** The agent can reliably handle complex, multi-turn tasks, such as requiring user confirmation before deleting a calendar event, ensuring a safe and predictable user experience.
+
+- **Robust Error Handling:** The assistant is designed to handle API or connection errors gracefully, providing clear feedback to the user (e.g., "I'm having trouble connecting to Google Calendar") instead of crashing.
 
 - **Persistent Conversation Memory:** Utilizes LangGraph's SQLite-based checkpointer system to remember conversations, allowing you to stop and resume your session at any time.
 
@@ -22,18 +24,22 @@ This project is built upon an advanced Router Architecture, which intelligently 
 - **Advanced Google Calendar Integration:**
 
   + **Natural Language Understanding:** Parses queries like "tomorrow at 4 PM" or "next week" into precise dates and times, powered by the `parsedatetime` library.
-
-   + **Intelligent Event Creation:** Automatically checks for scheduling conflicts before adding new events to your calendar.
-
-   + **Event Management:** Modifies existing events with simple commands like "Move my meeting to 5 PM" and deletes events with a confirmation step.
+  + **Full Event Management (CRUD):** Can create, read, update, and delete calendar events. It intelligently checks for scheduling conflicts and handles complex requests like "Move my meeting to 5 PM."
   
 
 - **Gmail Integration:**
 
-   + **Intelligent Filtering & Summarization:** Filters emails by sender, status (read/unread), and time range (e.g., "last 2 days") and summarizes their content.
+   + **Intelligent Search & Summarization:** Filters emails by sender, status, keywords, and time range (e.g., "last 2 days") and summarizes their content.
+   + **Email Management:** Can delete and archive emails, with safety prompts for destructive actions.
+
+
+- **Google Tasks Integration:**
+
+   + **Full Task Management (CRUD+C):** Allows the user to add, list, update, complete, and delete tasks from their Google Tasks lists.
+
+   + **Natural Language Due Dates:** Understands due dates like "for tomorrow" or "for next Friday" when adding tasks.
 
 - **General Knowledge Q&A:** Uses the Tavily Search API to answer questions about real-time events, facts, and general knowledge.
-
 
 - **Interactive Notebook Environment:** All development and interaction happens within a single, easy-to-use `assistant.ipynb` file.
 
@@ -50,6 +56,7 @@ graph TD
     Router -- route: 'calendar' --> CalendarAgent[Calendar Agent];
     Router -- route: 'email' --> EmailAgent[Email Agent];
     Router -- route: 'search' --> SearchAgent[Search Agent];
+    Router -- route: 'tasks' --> TaskAgent[Task Agent];
     Router -- route: 'conversational' --> ConversationalAgent[Conversational Agent];
 
     subgraph Calendar Workflow
@@ -69,10 +76,17 @@ graph TD
         SearchAgent -- "Needs Tool?" --> SearchTools[Search Tools];
         SearchTools --> SearchAgent;
     end
+
+    subgraph Task Workflow
+        direction LR
+        TaskAgent -- "Needs Tool?" --> TaskTools[🛠️ Task Tools];
+        TaskTools --> TaskAgent;
+    end
     
     CalendarAgent -- "Final Answer" --> EndPoint([Response to User]);
     EmailAgent -- "Final Answer" --> EndPoint;
     SearchAgent -- "Final Answer" --> EndPoint;
+    TaskAgent -- "Final Answer" --> EndPoint;
     ConversationalAgent --> EndPoint;
 ```
 
@@ -81,10 +95,11 @@ graph TD
 ## Technologies Used
 
 - **Core Framework:** LangChain & LangGraph for building the stateful agent.
-- **LLM:** `llama-3.3-70b-versatile` via the Groq API for high-speed, low-latency responses
+- **LLM:** `llama-3.1-8b-instant` (for speed) or `llama-3.3-70b-versatile` (for reasoning) via the Groq API.
 - **External Services:**
   - Google Calendar API
   - Google Gmail API
+  - Google Tasks API
   - Tavily Search API
 - **Key Python Libraries:**
   - `google-api-python-client` & `google-auth-oauthlib` for Google API authentication.
@@ -182,20 +197,23 @@ TAVILY_API_KEY="tvly-YourTavilyApiKey"
 Your assistant is ready. You can now start chatting.
    Type 'quit' or 'exit' to end the conversation.
 -------------------------
-You: What's on my schedule for tomorrow?
+You: Do I have any new emails?
+Assistant: Yes, you have one unread email from 'Google' with the subject 'Security alert'.
+
+You: Okay, archive it.
+Assistant: The email from 'Google' has been archived.
+
+You: What are my tasks for today?
+Assistant: You have one task for today: 'Finish project report'.
+
+You: Add a new task: 'Buy groceries for tonight'.
+Assistant: The task 'Buy groceries for tonight' has been added to your list.
+
+You: And what's on my calendar for tomorrow?
 Assistant: You have a 'Dentist Appointment' scheduled for tomorrow at 11:00 AM.
 
-You: Please cancel the Dentist Appointment.
-Assistant: I found the 'Dentist Appointment' for tomorrow. Are you sure you want to cancel it?
+You: Can you cancel the dentist appointment?
+Assistant: Are you sure you want to delete the 'Dentist Appointment' event?
 
-You: Yes, please.
+You: Yes.
 Assistant: The 'Dentist Appointment' has been successfully removed from your calendar.
-
-You: Add a 'Team Lunch' to my calendar for next Friday at 1 PM.
-Assistant: Of course, and how long will the event be?
-
-You: It will be 90 minutes.
-Assistant: Done. I've added 'Team Lunch' to your calendar for next Friday at 1:00 PM.
-
-You: Are there any unread emails from 'Google'?
-Assistant: Let me check... Yes, you have one unread email from 'Google' with the subject 'Security alert', summarizing that a new device has signed into your account.
