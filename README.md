@@ -13,7 +13,7 @@ This project is built upon an advanced Router Architecture, which intelligently 
 
 - **Specialized Expert Agents:** Each task area (Calendar, Email, etc.) is handled by a dedicated "Expert Agent" that only knows about its own set of tools and rules. This increases accuracy and reduces errors.
 
-- **Safe, Multi-Step Workflows:** The agent can reliably handle complex, multi-turn tasks, such as requiring user confirmation before deleting a calendar event, ensuring a safe and predictable user experience.
+- **Safe, Multi-Step Workflows:** The agent can reliably handle complex, multi-turn tasks, such as requiring user confirmation before deleting an event or sending an email, ensuring a safe and predictable user experience.
 
 - **Robust Error Handling:** The assistant is designed to handle API or connection errors gracefully, providing clear feedback to the user (e.g., "I'm having trouble connecting to Google Calendar") instead of crashing.
 
@@ -21,7 +21,7 @@ This project is built upon an advanced Router Architecture, which intelligently 
 
 - **Conversational AI Core:** Powered by LangGraph and Groq's Llama 3 for stateful, low-latency conversations.
 
-- **Advanced Google Calendar Integration:**
+- **Google Calendar Integration:**
 
   + **Natural Language Understanding:** Parses queries like "tomorrow at 4 PM" or "next week" into precise dates and times, powered by the `parsedatetime` library.
   + **Full Event Management (CRUD):** Can create, read, update, and delete calendar events. It intelligently checks for scheduling conflicts and handles complex requests like "Move my meeting to 5 PM."
@@ -30,12 +30,15 @@ This project is built upon an advanced Router Architecture, which intelligently 
 - **Gmail Integration:**
 
    + **Intelligent Search & Summarization:** Filters emails by sender, status, keywords, and time range (e.g., "last 2 days") and summarizes their content.
-   + **Email Management:** Can delete and archive emails, with safety prompts for destructive actions.
+
+   + **Autonomous Composition:** Can compose and draft emails and replies based on high-level user intent (e.g., "Reply and tell them I'm interested").
+
+   + **Full Email Management:** Can create drafts, send drafts (with user confirmation), archive, and delete emails.
 
 
 - **Google Tasks Integration:**
 
-   + **Full Task Management (CRUD+C):** Allows the user to add, list, update, complete, and delete tasks from their Google Tasks lists.
+   + **Full Task Management:** Allows the user to add, list, update, complete, and delete tasks from their Google Tasks lists.
 
    + **Natural Language Due Dates:** Understands due dates like "for tomorrow" or "for next Friday" when adding tasks.
 
@@ -79,7 +82,7 @@ graph TD
 
     subgraph Task Workflow
         direction LR
-        TaskAgent -- "Needs Tool?" --> TaskTools[🛠️ Task Tools];
+        TaskAgent -- "Needs Tool?" --> TaskTools[Task Tools];
         TaskTools --> TaskAgent;
     end
     
@@ -197,23 +200,23 @@ TAVILY_API_KEY="tvly-YourTavilyApiKey"
 Your assistant is ready. You can now start chatting.
    Type 'quit' or 'exit' to end the conversation.
 -------------------------
-You: Do I have any new emails?
-Assistant: Yes, you have one unread email from 'Google' with the subject 'Security alert'.
-
-You: Okay, archive it.
-Assistant: The email from 'Google' has been archived.
-
 You: What are my tasks for today?
 Assistant: You have one task for today: 'Finish project report'.
 
-You: Add a new task: 'Buy groceries for tonight'.
-Assistant: The task 'Buy groceries for tonight' has been added to your list.
+You: Okay, mark it as complete.
+Assistant: The task "Finish project report" has been marked as completed.
 
 You: And what's on my calendar for tomorrow?
 Assistant: You have a 'Dentist Appointment' scheduled for tomorrow at 11:00 AM.
 
-You: Can you cancel the dentist appointment?
-Assistant: Are you sure you want to delete the 'Dentist Appointment' event?
+You: Can you move the dentist appointment to 1 PM?
+Assistant: No problem. The 'Dentist Appointment' has been rescheduled to start at 1:00 PM.
 
-You: Yes.
-Assistant: The 'Dentist Appointment' has been successfully removed from your calendar.
+You: Are there any new emails from 'Berkay Alkan'?
+Assistant: Let me check... Yes, you have one unread email from 'Berkay Alkan' with the subject 'Project Proposal'. The body says he has attached the new proposal for review.
+
+You: Can you reply to him and say I will review it and get back to him tomorrow?
+Assistant: I have prepared a draft reply to 'Berkay Alkan' for you to review in Gmail. It says: "Hi Berkay, Thanks for sending this over. I will review it and get back to you tomorrow. Best,". Shall I send it?
+
+You: Yes, please send it.
+Assistant: The reply has been sent.
