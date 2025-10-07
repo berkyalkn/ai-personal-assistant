@@ -2,6 +2,8 @@ credentials.json
 token.json
 .env
 conversations.sqlite
+*.sqlite-wal
+*.sqlite-shm
 
 
 /venv
