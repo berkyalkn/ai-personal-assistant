@@ -1148,6 +1148,17 @@ db_path = os.path.abspath("conversations.sqlite")
 print(f"Backend is using database at: {db_path}")
 
 conn = sqlite3.connect("conversations.sqlite", check_same_thread=False)
+
+cursor = conn.cursor()
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS chat_metadata (
+        thread_id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+conn.commit()
+
 memory = SqliteSaver(conn=conn)
 app = workflow.compile(checkpointer=memory)
 print("\nLangGraph application compiled successfully and is ready.")
