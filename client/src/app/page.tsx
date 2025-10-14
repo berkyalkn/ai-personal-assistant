@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import Sidebar from '@/app/components/SideBar';
+import Sidebar, { Thread } from '@/app/components/SideBar';
 import ChatInterface, { Message } from '@/app/components/ChatInterface';
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
-  const [threads, setThreads] = useState<string[]>([]);
+  const [threads, setThreads] = useState<Thread[]>([]);
 
   useEffect(() => {
     const fetchThreads = async () => {
@@ -28,8 +28,23 @@ export default function Home() {
     const newThreadId = uuidv4();
     setMessages([]);
     setCurrentThreadId(newThreadId);
-    if (!threads.includes(newThreadId)) {
-      setThreads((prev) => [newThreadId, ...prev]);
+    
+    const newThread: Thread = { id: newThreadId, title: "New Chat" };
+    setThreads((prevThreads) => [newThread, ...prevThreads]);
+
+    handleRenameThread(newThreadId, "New Chat");
+  };
+  
+  const handleRenameThread = async (threadId: string, newTitle: string) => {
+    setThreads(threads.map(t => t.id === threadId ? { ...t, title: newTitle } : t));
+    try {
+      await fetch(`http://127.0.0.1:5001/api/threads/${threadId}/title`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      });
+    } catch (error) {
+      console.error("Failed to rename thread:", error);
     }
   };
 
@@ -50,12 +65,16 @@ export default function Home() {
 
   const handleSendMessage = async (messageText: string) => {
     let threadIdToUse = currentThreadId;
-
+    
     if (!threadIdToUse) {
       const newThreadId = uuidv4();
       setCurrentThreadId(newThreadId);
-      if (!threads.includes(newThreadId)) {
-        setThreads((prev) => [newThreadId, ...prev]);
+      const newTitle = messageText.substring(0, 25) + (messageText.length > 25 ? '...' : '');
+      const newThread: Thread = { id: newThreadId, title: newTitle };
+
+      setThreads((prev) => [newThread, ...prev]);
+      if (newThread.title) {
+        handleRenameThread(newThreadId, newThread.title);
       }
       threadIdToUse = newThreadId;
     }
@@ -88,6 +107,7 @@ export default function Home() {
         activeThreadId={currentThreadId}
         onNewChat={startNewChat}
         onSelectThread={handleSelectThread}
+        onRenameThread={handleRenameThread}
       />
       <ChatInterface 
         messages={messages} 
