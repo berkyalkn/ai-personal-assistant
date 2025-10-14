@@ -38,12 +38,20 @@ async def chat(request: ChatRequest):
 @app_fastapi.get("/api/history/{thread_id}")
 async def get_history(thread_id: str):
     config = {"configurable": {"thread_id": thread_id}}
-    conversation = memory.get(config)
+    checkpoint_tuple = memory.get_tuple(config)
     
     messages = []
-    if conversation and conversation["messages"]:
-        for msg in conversation["messages"]:
-            messages.append({"sender": "user" if isinstance(msg, HumanMessage) else "assistant", "text": msg.content})
+
+    if checkpoint_tuple:
+        checkpoint = checkpoint_tuple.checkpoint
+
+    if checkpoint and checkpoint.get('channel_values', {}).get('messages'):
+            raw_messages = checkpoint['channel_values']['messages']
+            
+            for msg in raw_messages:
+                if hasattr(msg, 'content'):
+                    sender = "user" if isinstance(msg, HumanMessage) else "assistant"
+                    messages.append({"sender": sender, "text": msg.content})
 
     return {"messages": messages}
 
@@ -51,7 +59,7 @@ async def get_history(thread_id: str):
 
 @app_fastapi.get("/api/threads")
 async def get_threads():
-    """Veritabanındaki tüm benzersiz thread_id'leri listeler."""
+
     cursor = conn.cursor()
     cursor.execute("SELECT DISTINCT thread_id FROM checkpoints")
     threads = cursor.fetchall()
