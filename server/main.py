@@ -23,6 +23,9 @@ class ChatRequest(BaseModel):
     message: str
     thread_id: str
 
+class TitleUpdateRequest(BaseModel):
+    title: str
+
 @app_fastapi.post("/api/chat")
 async def chat(request: ChatRequest):
     if not request.message:
@@ -56,15 +59,31 @@ async def get_history(thread_id: str):
     return {"messages": messages}
 
 
-
 @app_fastapi.get("/api/threads")
 async def get_threads():
-
     cursor = conn.cursor()
-    cursor.execute("SELECT DISTINCT thread_id FROM checkpoints")
+    cursor.execute("""
+        SELECT c.thread_id, m.title
+        FROM checkpoints c
+        LEFT JOIN chat_metadata m ON c.thread_id = m.thread_id
+        GROUP BY c.thread_id
+        ORDER BY MAX(c.checkpoint_id) DESC
+    """)
     threads = cursor.fetchall()
-    thread_ids = [thread[0] for thread in threads]
-    return {"threads": thread_ids}
+    thread_list = [{"id": thread[0], "title": thread[1]} for thread in threads]
+    return {"threads": thread_list}
+
+
+
+@app_fastapi.put("/api/threads/{thread_id}/title")
+async def update_thread_title(thread_id: str, request: TitleUpdateRequest):
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT OR REPLACE INTO chat_metadata (thread_id, title) VALUES (?, ?)",
+        (thread_id, request.title)
+    )
+    conn.commit()
+    return {"status": "success", "thread_id": thread_id, "new_title": request.title}
 
 @app_fastapi.get("/")
 def read_root():
