@@ -1,23 +1,26 @@
 # Personal AI Assistant
 
+A conversational AI assistant web application that connects to your Google services (Calendar, Gmail, Tasks) to help you manage your schedule, communications, and to-do lists. It can also answer general knowledge questions via web search and hold natural, stateful conversations with persistent memory across multiple chat sessions.
 
-A conversational AI assistant that connects to your Google services to help you manage your calendar, emails, and to-do lists, answer questions via web search, and hold natural conversations with persistent memory.
-
-This project is built upon an advanced Router Architecture, which intelligently delegates tasks to specialized expert agents rather than relying on a single monolithic agent.
+This project is built upon an advanced Router Architecture, intelligently delegating tasks to specialized expert agents, all served via a modern web interface.
 
 ---
 
 ## Architectural Features
 
-- **Advanced Agentic Architecture:** At the core of the project is a "Smart Router" that analyzes user requests and delegates the task to the correct expert: Calendar, Email, Tasks, Search, or Conversational. This makes the system more modular, efficient, and scalable.
+- **Full-Stack Application:** Combines a powerful FastAPI backend (Python) handling the AI logic with a sleek Next.js frontend (TypeScript/React) providing the user interface.
 
-- **Specialized Expert Agents:** Each task area (Calendar, Email, etc.) is handled by a dedicated "Expert Agent" that only knows about its own set of tools and rules. This increases accuracy and reduces errors.
+- **Advanced Agentic Architecture:** The backend utilizes a "Smart Router" (built with LangGraph) to analyze user requests and delegate tasks to the correct expert: Calendar, Email, Tasks, Search, or Conversational.
 
-- **Safe, Multi-Step Workflows:** The agent can reliably handle complex, multi-turn tasks, such as requiring user confirmation before deleting an event or sending an email, ensuring a safe and predictable user experience.
+- **Specialized Expert Agents:** Each task area is handled by a dedicated agent with its own tools and robust system prompts, ensuring accuracy and adherence to safety protocols.
+
+- **Safe, Multi-Step Workflows:** Critical actions like deleting events, sending emails, or completing tasks require explicit user confirmation, ensuring a safe and predictable user experience.
 
 - **Robust Error Handling:** The assistant is designed to handle API or connection errors gracefully, providing clear feedback to the user (e.g., "I'm having trouble connecting to Google Calendar") instead of crashing.
 
-- **Persistent Conversation Memory:** Utilizes LangGraph's SQLite-based checkpointer system to remember conversations, allowing you to stop and resume your session at any time.
+- **Dynamic Conversation History:** Features a sidebar displaying previous chat sessions. Users can switch between conversations, rename them for better organization, and the assistant maintains context for each session.
+
+- **Persistent Conversation Memory:** Leverages LangGraph's SQLite checkpointer to store conversation state, allowing sessions to be paused and resumed. A separate table stores user-defined chat titles.
 
 - **Conversational AI Core:** Powered by LangGraph and Groq's Llama 3 for stateful, low-latency conversations.
 
@@ -42,9 +45,15 @@ This project is built upon an advanced Router Architecture, which intelligently 
 
    + **Natural Language Due Dates:** Understands due dates like "for tomorrow" or "for next Friday" when adding tasks.
 
-- **General Knowledge Q&A:** Uses the Tavily Search API to answer questions about real-time events, facts, and general knowledge.
+- **General Knowledge Q&A:** Uses the Tavily Search API for real-time information retrieval, with mandatory search rule and source citation.
 
-- **Interactive Notebook Environment:** All development and interaction happens within a single, easy-to-use `assistant.ipynb` file.
+- **Modern Web Interface (Frontend):**
+
+  - Clean, responsive chat interface built with React and styled with Tailwind CSS.
+
+  - Real-time message updates and "Assistant is thinking..." indicators.
+
+  - Sidebar for managing multiple conversations with renaming capabilities.
 
 ---
 
@@ -54,7 +63,7 @@ The assistant operates on a router-based agentic architecture. All user input is
 
 ```mermaid
 graph TD
-    UserInput(["User Input"]) --> Router{"Smart Router"};
+    UserInput["User Input (via Web Interface)"] --> Router{"Smart Router (LangGraph)"};
 
     Router -- route: 'calendar' --> CalendarAgent[Calendar Agent];
     Router -- route: 'email' --> EmailAgent[Email Agent];
@@ -67,8 +76,8 @@ graph TD
         CalendarAgent -- "Needs Tool?" --> CalendarTools[Calendar Tools];
         CalendarTools --> CalendarAgent;
     end
-
-    subgraph Email Workflow
+    
+     subgraph Email Workflow
         direction LR
         EmailAgent -- "Needs Tool?" --> EmailTools[Email Tools];
         EmailTools --> EmailAgent;
@@ -85,31 +94,55 @@ graph TD
         TaskAgent -- "Needs Tool?" --> TaskTools[Task Tools];
         TaskTools --> TaskAgent;
     end
-    
-    CalendarAgent -- "Final Answer" --> EndPoint([Response to User]);
-    EmailAgent -- "Final Answer" --> EndPoint;
-    SearchAgent -- "Final Answer" --> EndPoint;
-    TaskAgent -- "Final Answer" --> EndPoint;
-    ConversationalAgent --> EndPoint;
+
+    CalendarAgent -- "Final Answer" --> ResponseToUser["Response to User (via Web Interface)"];
+    EmailAgent -- "Final Answer" --> ResponseToUser;
+    SearchAgent -- "Final Answer" --> ResponseToUser;
+    TaskAgent -- "Final Answer" --> ResponseToUser;
+    ConversationalAgent --> ResponseToUser;
+
+    style UserInput fill:#FFFFFF,stroke:#333,stroke-width:2px
+    style ResponseToUser fill:#FFFFFF,stroke:#333,stroke-width:2px
 ```
 
 ---
 
 ## Technologies Used
 
-- **Core Framework:** LangChain & LangGraph for building the stateful agent.
-- **LLM:** `llama-3.1-8b-instant` (for speed) or `llama-3.3-70b-versatile` (for reasoning) via the Groq API.
-- **External Services:**
-  - Google Calendar API
-  - Google Gmail API
-  - Google Tasks API
-  - Tavily Search API
-- **Key Python Libraries:**
-  - `google-api-python-client` & `google-auth-oauthlib` for Google API authentication.
-  - `parsedatetime` for robust natural language date/time parsing.
-  - `Pydantic` for reliable data validation and modeling.
-  - `python-dotenv` for secure management of API keys.
-- **Database:** SQLite, used by LangGraph's checkpointer for persistent conversation memory.
+#### Backend:
+
+- **Framework:** FastAPI
+
+- **AI/Agent Framework:** LangChain & LangGraph
+
+- **LLM:** Groq API (Llama 3 models)
+
+- **Web Server:** Uvicorn
+
+- **Database:** SQLite (for LangGraph checkpoints & chat titles)
+
+- **Key Python Libraries:** google-api-python-client, google-auth-oauthlib, parsedatetime, python-dotenv, Pydantic
+
+#### Frontend:
+
+- **Framework:** Next.js (App Router)
+
+- **Language:** TypeScript
+
+- **UI Library:** React
+
+- **Styling:** Tailwind CSS
+
+
+#### External Services:
+
+- Google Calendar API
+
+- Google Gmail API
+
+- Google Tasks API
+
+- Tavily Search API
 
 
 ---
@@ -126,18 +159,18 @@ git clone https://github.com/berkyalkn/ai-personal-assistant.git
 cd ai-personal-assistant
 ```
 
-**2. Create a Virtual Environment and Install Dependencies:**
+**2. Setup Backend:**
 
 ```bash
-# Create a virtual environment
+# Go to the backend directory
+cd backend
+
+# Create a virtual environment (recommended)
 python -m venv venv
+# Activate it (macOS/Linux): source venv/bin/activate
+# Activate it (Windows): .\venv\Scripts\activate
 
-# Activate it (macOS/Linux)
-source venv/bin/activate
-# Or (Windows)
-.\venv\Scripts\activate
-
-# Install required packages
+# Install required Python packages
 pip install -r requirements.txt
 ```
 
@@ -156,7 +189,6 @@ GROQ_API_KEY="gsk_YourGroqApiKey"
 
 # Tavily API Key for web search
 TAVILY_API_KEY="tvly-YourTavilyApiKey"
-
 ```
 
 
@@ -180,43 +212,49 @@ TAVILY_API_KEY="tvly-YourTavilyApiKey"
 
 **Note:** The first time you run a calendar command, you will be prompted to authorize the application in your browser. This will generate a `token.json` file. This is a one-time process.
 
+**Setup Frontend:**
+
+```bash
+# Go back to the root directory
+cd ..
+
+# Go to the frontend directory
+cd frontend
+
+# Install the required Node.js packages
+npm install
+```
+
 ---
 
-## How to Run
+##  How to Run
 
-1- Open the `assistant.ipynb` file in Jupyter Notebook, JupyterLab, or Visual Studio Code.
+You will need two separate terminal windows to run the application.
 
-2- Run the cells in order from top to bottom.
+#### Terminal 1: Backend Server
 
-3- The final cell will start an interactive chat loop. You can start talking to your assistant directly in the notebook's output.
+```bash
+cd backend
+# Don’t forget to activate the virtual environment (if you're using one)
+# source venv/bin/activate
 
-4- To continue a previous conversation, ensure the thread_id in the code is the same. To start a new one, change the thread_id.
+# Start the FastAPI server
+uvicorn main:app_fastapi --reload --port 5001
+```
+
+#### Terminal 2: Frontend Server
+
+```bash
+cd frontend
+npm run dev
+```
+
+Once the application has started successfully, you can visit http://localhost:3000 in your browser to start using the AI Personal Assistant.
 
 --- 
 
 ## Example Usage
 
-```
-Your assistant is ready. You can now start chatting.
-   Type 'quit' or 'exit' to end the conversation.
--------------------------
-You: What are my tasks for today?
-Assistant: You have one task for today: 'Finish project report'.
+A quick glimpse of the AI Personal Assistant in action:
 
-You: Okay, mark it as complete.
-Assistant: The task "Finish project report" has been marked as completed.
-
-You: And what's on my calendar for tomorrow?
-Assistant: You have a 'Dentist Appointment' scheduled for tomorrow at 11:00 AM.
-
-You: Can you move the dentist appointment to 1 PM?
-Assistant: No problem. The 'Dentist Appointment' has been rescheduled to start at 1:00 PM.
-
-You: Are there any new emails from 'Berkay Alkan'?
-Assistant: Let me check... Yes, you have one unread email from 'Berkay Alkan' with the subject 'Project Proposal'. The body says he has attached the new proposal for review.
-
-You: Can you reply to him and say I will review it and get back to him tomorrow?
-Assistant: I have prepared a draft reply to 'Berkay Alkan' for you to review in Gmail. It says: "Hi Berkay, Thanks for sending this over. I will review it and get back to you tomorrow. Best,". Shall I send it?
-
-You: Yes, please send it.
-Assistant: The reply has been sent.
+![AI Personal Assistant Screenshot](/assets/screenshot.png)
