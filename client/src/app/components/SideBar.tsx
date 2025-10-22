@@ -40,7 +40,9 @@ export default function Sidebar({ threads, activeThreadId, onNewChat, onSelectTh
   };
 
   return (
-    <div className="w-64 bg-gray-800 text-white flex flex-col">
+    <div className="w-64 text-white flex flex-col"
+    style={{ backgroundColor: '#1f2937' }}
+    >
       <div className="p-4 border-b border-gray-700">
         <button
           onClick={onNewChat}
@@ -67,16 +69,19 @@ export default function Sidebar({ threads, activeThreadId, onNewChat, onSelectTh
               ) : (
                 <div
                   onClick={() => onSelectThread(thread.id)}
-                  className={`w-full text-left p-2 rounded truncate text-sm flex justify-between items-center ${
-                    activeThreadId === thread.id ? 'bg-gray-600' : 'hover:bg-gray-700'
+                  className={`w-full text-left p-2 rounded truncate text-sm flex justify-between items-center cursor-pointer transition-colors duration-150 ${
+                    activeThreadId === thread.id ? 'bg-gray-600 font-medium' : 'hover:bg-gray-700'
                   }`}
                 >
-                  <span>{thread.title || thread.id.substring(0, 12) + '...'}</span>
+                  <span className="text-gray-300"> 
+                    {thread.title || thread.id.substring(0, 12) + '...'}
+                  </span>
+
                   <button onClick={(e : MouseEvent<HTMLButtonElement>) => {
                     e.stopPropagation();
                     handleRename(thread)
                     }}
-                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white p-1">
+                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white p-1 transition-opacity duration-150">
                     ✏️
                   </button>
                 </div>

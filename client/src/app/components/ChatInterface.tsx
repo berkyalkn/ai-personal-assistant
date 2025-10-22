@@ -23,12 +23,12 @@ export default function ChatInterface({ messages, isLoading, onSendMessage }: Ch
   }, [messages]);
 
   return (
-    <div className="flex flex-col h-screen flex-1">
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-        <h1 className="text-xl font-bold text-gray-800">AI Personal Assistant</h1>
+    <div className="flex flex-col h-full flex-1">
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50 rounded-tr-lg">
+        <h1 className="text-xl font-semibold text-gray-800">AI Personal Assistant</h1>
         <div className={`flex items-center space-x-2 ${isLoading ? 'animate-pulse' : ''}`}>
-          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-          <p className="text-sm text-gray-500">{isLoading ? 'Typing...' : 'Online'}</p>
+          <div className="w-2.5 h-2.5 bg-green-500 rounded-full"></div>
+          <p className="text-sm text-gray-600">{isLoading ? 'Typing...' : 'Online'}</p>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-gray-100">

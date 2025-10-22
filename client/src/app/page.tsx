@@ -101,19 +101,26 @@ export default function Home() {
   };
 
   return (
-    <main className="flex h-screen">
-      <Sidebar 
-        threads={threads}
-        activeThreadId={currentThreadId}
-        onNewChat={startNewChat}
-        onSelectThread={handleSelectThread}
-        onRenameThread={handleRenameThread}
-      />
-      <ChatInterface 
-        messages={messages} 
-        isLoading={isLoading} 
-        onSendMessage={handleSendMessage} 
-      />
+    <main className="flex h-screen justify-center items-center"
+    style={{ backgroundColor: '#f3f4f7' }}
+    >
+      <div
+      className="flex h-[90vh] w-[90vw] max-w-6xl shadow-xl rounded-lg overflow-hidden"
+      style={{ backgroundColor: 'white' }}
+      >
+        <Sidebar 
+          threads={threads}
+          activeThreadId={currentThreadId}
+          onNewChat={startNewChat}
+          onSelectThread={handleSelectThread}
+          onRenameThread={handleRenameThread}
+        />
+        <ChatInterface 
+          messages={messages} 
+          isLoading={isLoading} 
+          onSendMessage={handleSendMessage} 
+        />
+        </div>
     </main>
   );
 }
