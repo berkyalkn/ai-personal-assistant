@@ -11,6 +11,20 @@ export default function Home() {
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [threads, setThreads] = useState<Thread[]>([]);
 
+  const loadThreads = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:5001/api/threads');
+      const data = await response.json();
+      setThreads(data.threads || []);
+    } catch (error) {
+      console.error("Failed to fetch threads:", error);
+    }
+  };
+
+  useEffect(() => {
+    loadThreads(); 
+  }, []);
+
   useEffect(() => {
     const fetchThreads = async () => {
       try {
@@ -100,6 +114,30 @@ export default function Home() {
     }
   };
 
+  const handleDeleteThread = async (threadId: string) => {
+    setThreads((prevThreads) => prevThreads.filter(t => t.id !== threadId));
+
+    if (currentThreadId === threadId) {
+      setCurrentThreadId(null); 
+      setMessages([]);        
+    }
+
+    try {
+      const response = await fetch(`http://127.0.0.1:5001/api/threads/${threadId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        console.error("Failed to delete thread on server, rolling back UI.");
+        loadThreads();
+      }
+      
+    } catch (error) {
+      console.error("Error deleting thread:", error);
+      loadThreads();
+    }
+  };
+
   return (
     <main className="flex h-screen justify-center items-center"
     style={{ backgroundColor: '#f3f4f7' }}
@@ -114,6 +152,7 @@ export default function Home() {
           onNewChat={startNewChat}
           onSelectThread={handleSelectThread}
           onRenameThread={handleRenameThread}
+          onDeleteThread={handleDeleteThread}
         />
         <ChatInterface 
           messages={messages} 
