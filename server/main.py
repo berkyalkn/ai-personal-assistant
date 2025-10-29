@@ -85,6 +85,28 @@ async def update_thread_title(thread_id: str, request: TitleUpdateRequest):
     conn.commit()
     return {"status": "success", "thread_id": thread_id, "new_title": request.title}
 
+
+@app_fastapi.delete("/api/threads/{thread_id}")
+async def delete_thread(thread_id: str):
+    """
+    Deletes a specific thread and its metadata from the database.
+    """
+    print(f"--- Deleting Thread ID: {thread_id} ---")
+    try:
+        cursor = conn.cursor()
+        
+        cursor.execute("DELETE FROM chat_metadata WHERE thread_id = ?", (thread_id,))
+        
+        cursor.execute("DELETE FROM checkpoints WHERE thread_id = ?", (thread_id,))
+        
+        conn.commit()
+        
+        return {"status": "success", "deleted_thread_id": thread_id}
+    except Exception as e:
+        conn.rollback() 
+        print(f"!!! Error deleting thread {thread_id}: {e}")
+        return JSONResponse(content={"error": f"Failed to delete thread: {e}"}, status_code=500)
+
 @app_fastapi.get("/")
 def read_root():
     return {"status": "AI Personal Assistant API is running."}
