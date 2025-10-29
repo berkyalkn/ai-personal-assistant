@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from fastapi.responses import JSONResponse
 
 from assistant import app as personal_assistant_app, memory, conn
@@ -44,6 +44,7 @@ async def get_history(thread_id: str):
     checkpoint_tuple = memory.get_tuple(config)
     
     messages = []
+    checkpoint = None
 
     if checkpoint_tuple:
         checkpoint = checkpoint_tuple.checkpoint
@@ -52,10 +53,13 @@ async def get_history(thread_id: str):
             raw_messages = checkpoint['channel_values']['messages']
             
             for msg in raw_messages:
-                if hasattr(msg, 'content'):
-                    sender = "user" if isinstance(msg, HumanMessage) else "assistant"
-                    messages.append({"sender": sender, "text": msg.content})
 
+                if isinstance(msg, HumanMessage):
+                    messages.append({"sender": "user", "text": msg.content})
+                
+                elif isinstance(msg, AIMessage) and msg.content:
+                    messages.append({"sender": "assistant", "text": msg.content})
+                
     return {"messages": messages}
 
 
