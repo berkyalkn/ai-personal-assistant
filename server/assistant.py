@@ -395,6 +395,87 @@ def get_events_for_range(time_range: str) -> str:
 
     return json.dumps(events, indent=2)
 
+
+@tool
+def find_free_slot(
+    duration_minutes: int,
+    search_start_natural: str,
+    search_end_natural: str,
+    max_results: int = 5
+) -> str:
+    """
+    Finds available (free) time slots of a specific duration within a given time range.
+
+    Args:
+        duration_minutes (int): The desired duration of the free slot (e.g., 30).
+        search_start_natural (str): The natural language start of the search range (e.g., "tomorrow at 9 AM", "today").
+        search_end_natural (str): The natural language end of the search range (e.g., "tomorrow at 5 PM", "this evening").
+        max_results (int): The maximum number of free slots to return.
+    """
+    
+    print(f"--- Tool: find_free_slot called for {duration_minutes} min duration between '{search_start_natural}' and '{search_end_natural}' ---")
+
+    start_time_obj = _parse_natural_language_time(search_start_natural)
+    end_time_obj = _parse_natural_language_time(search_end_natural)
+
+    if not start_time_obj or not end_time_obj:
+        return json.dumps([{"error_type": "DateParseError", "details": "I could not understand the start or end time you provided."}])
+
+    if start_time_obj >= end_time_obj:
+        return json.dumps([{"error_type": "InvalidRangeError", "details": "The start time must be before the end time."}])
+
+    duration_delta = datetime.timedelta(minutes=duration_minutes)
+    
+    try:
+        google_events = _fetch_google_events(start_date=start_time_obj, end_date=end_time_obj)
+        
+        busy_slots = [e for e in google_events if 'error_type' not in e]
+        
+        parsed_busy_slots = []
+        for event in busy_slots:
+            try:
+                event_start = parse(event['start'].get('dateTime'))
+                event_end = parse(event['end'].get('dateTime'))
+                parsed_busy_slots.append((event_start, event_end))
+            except ParserError:
+                continue 
+
+        parsed_busy_slots.sort(key=lambda x: x[0])
+
+        found_slots = []
+        current_pointer = start_time_obj
+
+        for event_start, event_end in parsed_busy_slots:
+            if event_start > current_pointer:
+                gap_duration = event_start - current_pointer
+                
+                if gap_duration >= duration_delta:
+                    slot_start = current_pointer
+                    slot_end = current_pointer + duration_delta
+                    found_slots.append({
+                        "start": slot_start.isoformat(),
+                        "end": slot_end.isoformat()
+                    })
+                    if len(found_slots) >= max_results:
+                        return json.dumps(found_slots, indent=2)
+            
+            current_pointer = max(current_pointer, event_end)
+
+
+        if len(found_slots) < max_results:
+            final_gap_duration = end_time_obj - current_pointer
+            if final_gap_duration >= duration_delta:
+                found_slots.append({
+                    "start": current_pointer.isoformat(),
+                    "end": (current_pointer + duration_delta).isoformat()
+                })
+
+        return json.dumps(found_slots, indent=2)
+
+    except Exception as e:
+        print(f"!!! An error occurred in find_free_slot: {e}")
+        return json.dumps([{"error_type": "UnknownError", "details": str(e)}])
+
 @tool
 def update_google_event(
     event_id: str,
@@ -885,7 +966,8 @@ calendar_tools = [
     create_google_event,
     delete_google_event,
     get_events_for_range,
-    update_google_event]
+    update_google_event,
+    find_free_slot]
 
 email_tools = [
     search_emails,
@@ -980,6 +1062,10 @@ Your instructions are:
 - For a date range (e.g., "this week"), use the `get_events_for_range` tool.
 - For general future queries (e.g., "what's next?"), use `list_upcoming_events`.
 - If the user asks for a specific NUMBER of events (e.g., "next 5 events"), you MUST use the `list_upcoming_events` tool with the `limit` parameter. Do not interpret this as a time range.
+- **CRITICAL RULE for finding free time:** You are FORBIDDEN from calling `find_free_slot` if the user has not provided ALL three of these: `duration_minutes`, `search_start_natural`, AND `search_end_natural`.
+    - If `duration_minutes` is missing, you MUST ask: "For how long?"
+    - If `search_start_natural` or `search_end_natural` are missing, you MUST ask: "For what day and time range should I look?"
+    - You are NOT allowed to assume "today" or any other default value.
 - **CRITICAL RULE for event creation: The `duration_minutes` parameter is required. You are FORBIDDEN from calling the `create_google_event` tool if the user has not provided a duration. If the duration is missing, you MUST stop and ask the user a clarifying question like "How long will the event last?". DO NOT call the tool with a null duration.**
 - **If a tool returns an error that a date could not be understood, you must inform the user that you could not understand the date they provided.**
 - CRITICAL RULE for updates and deletions: You are FORBIDDEN from calling `update_google_event` or `delete_google_event` until you have followed this exact sequence:
