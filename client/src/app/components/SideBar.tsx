@@ -13,9 +13,10 @@ interface SidebarProps {
   onNewChat: () => void;
   onSelectThread: (threadId: string) => void;
   onRenameThread: (threadId: string, newTitle: string) => Promise<void>;
+  onDeleteThread: (threadId: string) => void;
 }
 
-export default function Sidebar({ threads, activeThreadId, onNewChat, onSelectThread, onRenameThread }: SidebarProps) {
+export default function Sidebar({ threads, activeThreadId, onNewChat, onSelectThread, onRenameThread, onDeleteThread }: SidebarProps) {
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
   const [tempTitle, setTempTitle] = useState('');
 
@@ -76,15 +77,34 @@ export default function Sidebar({ threads, activeThreadId, onNewChat, onSelectTh
                   <span className="text-gray-300"> 
                     {thread.title || thread.id.substring(0, 12) + '...'}
                   </span>
+  
+                   <div className= "flex-shrink-0">
 
-                  <button onClick={(e : MouseEvent<HTMLButtonElement>) => {
-                    e.stopPropagation();
-                    handleRename(thread)
-                    }}
-                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white p-1 transition-opacity duration-150">
-                    ✏️
-                  </button>
-                </div>
+                   </div>
+                      <button
+                        onClick={(e : MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation();
+                            handleRename(thread)
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white p-1 transition-opacity duration-150"
+                          title="Rename chat"
+                      >
+                        ✏️
+                      </button>
+
+                      <button onClick={(e : MouseEvent<HTMLButtonElement>) => {
+                        e.stopPropagation();
+                        if (window.confirm("Are you sure you want to delete this chat? This action cannot be undone.")) {
+                          onDeleteThread(thread.id);
+                          onDeleteThread(thread.id);
+                        }
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-1 transition-opacity duration-150"
+                      title="Delete chat" 
+                      >
+                        🗑️
+                      </button>
+                  </div>
               )}
             </li>
           ))}
