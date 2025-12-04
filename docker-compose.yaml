@@ -13,6 +13,9 @@ services:
       - server/.env 
     volumes:
       - ./server/output:/app/output
+      - ./server/credentials.json:/app/credentials.json
+      - ./server/token.json:/app/token.json
+      - ./server/conversations.sqlite:/app/conversations.sqlite
     restart: always
 
 
