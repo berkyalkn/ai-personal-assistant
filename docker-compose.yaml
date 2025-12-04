@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: personal-assistant-backend
+    ports:
+      - "5001:5001"
+      - "8090:8090"
+    env_file:
+      - server/.env 
+    volumes:
+      - ./server/output:/app/output
+    restart: always
+
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:5001
+    container_name: personal-assistant-frontend
+    ports:
+      - "3000:8080"  
+    depends_on:
+      - backend   
+    restart: always
