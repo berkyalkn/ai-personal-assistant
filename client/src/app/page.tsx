@@ -5,6 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 import Sidebar, { Thread } from '@/app/components/SideBar';
 import ChatInterface, { Message } from '@/app/components/ChatInterface';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5001';
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -13,7 +15,7 @@ export default function Home() {
 
   const loadThreads = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:5001/api/threads');
+      const response = await fetch(`${API_BASE_URL}/api/threads`);
       const data = await response.json();
       setThreads(data.threads || []);
     } catch (error) {
@@ -28,7 +30,7 @@ export default function Home() {
   useEffect(() => {
     const fetchThreads = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:5001/api/threads');
+        const response = await fetch(`${API_BASE_URL}/api/threads`);
         const data = await response.json();
         setThreads(data.threads || []);
       } catch (error) {
@@ -52,7 +54,7 @@ export default function Home() {
   const handleRenameThread = async (threadId: string, newTitle: string) => {
     setThreads(threads.map(t => t.id === threadId ? { ...t, title: newTitle } : t));
     try {
-      await fetch(`http://127.0.0.1:5001/api/threads/${threadId}/title`, {
+      await fetch(`${API_BASE_URL}/api/threads/${threadId}/title`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newTitle }),
@@ -66,7 +68,7 @@ export default function Home() {
     setIsLoading(true);
     setCurrentThreadId(threadId);
     try {
-      const response = await fetch(`http://127.0.0.1:5001/api/history/${threadId}`);
+      const response = await fetch(`${API_BASE_URL}/api/history/${threadId}`);
       const data = await response.json();
       setMessages(data.messages || []);
     } catch (error) {
@@ -98,7 +100,7 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://127.0.0.1:5001/api/chat', {
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: messageText, thread_id: threadIdToUse }),
@@ -123,7 +125,7 @@ export default function Home() {
     }
 
     try {
-      const response = await fetch(`http://127.0.0.1:5001/api/threads/${threadId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/threads/${threadId}`, {
         method: 'DELETE',
       });
 
