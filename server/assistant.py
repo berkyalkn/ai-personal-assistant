@@ -1237,10 +1237,16 @@ workflow.add_edge("task_tools", "task_agent")
 workflow.add_conditional_edges("search_agent", should_call_tools, {"tools": "search_tools", END: END})
 workflow.add_edge("search_tools", "search_agent")
 
-db_path = os.path.abspath("conversations.sqlite")
+DATA_DIR = "data"
+
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+db_path = os.path.join(DATA_DIR, "conversations.sqlite")
+
 print(f"Backend is using database at: {db_path}")
 
-conn = sqlite3.connect("conversations.sqlite", check_same_thread=False)
+conn = sqlite3.connect(db_path, check_same_thread=False)
 
 cursor = conn.cursor()
 cursor.execute("""
