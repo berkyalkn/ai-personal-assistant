@@ -1,16 +1,16 @@
 # Personal AI Assistant
 
-A conversational AI assistant web application that connects to your Google services (Calendar, Gmail, Tasks) to help you manage your schedule, communications, and to-do lists. It can also answer general knowledge questions via web search and hold natural, stateful conversations with persistent memory across multiple chat sessions.
+A conversational AI assistant web application built with a Microservices Architecture. It connects to Google services (Calendar, Gmail, Tasks) via specialized agents and is orchestrated by LangGraph.
 
-This project is built upon an advanced Router Architecture, intelligently delegating tasks to specialized expert agents, all served via a modern web interface.
+The application helps manage schedules, emails, and tasks while maintaining persistent memory across sessions. It is fully containerized with Docker and designed for enterprise deployment on Red Hat OpenShift.
 
 ---
 
 ## Architectural Features
 
-- **Full-Stack Application:** Combines a powerful FastAPI backend (Python) handling the AI logic with a sleek Next.js frontend (TypeScript/React) providing the user interface.
+- **Microservices Architecture:** Decoupled Frontend (Next.js/Nginx) and Backend (FastAPI/Python) containers.
 
-- **Advanced Agentic Architecture:** The backend utilizes a "Smart Router" (built with LangGraph) to analyze user requests and delegate tasks to the correct expert: Calendar, Email, Tasks, Search, or Conversational.
+- **Advanced Agentic Router:** The backend utilizes a "Smart Router" (built with LangGraph) to analyze user requests and delegate tasks to the correct expert: Calendar, Email, Tasks, Search, or Conversational.
 
 - **Specialized Expert Agents:** Each task area is handled by a dedicated agent with its own tools and robust system prompts, ensuring accuracy and adherence to safety protocols.
 
@@ -20,7 +20,7 @@ This project is built upon an advanced Router Architecture, intelligently delega
 
 - **Dynamic Conversation History:** Features a sidebar displaying previous chat sessions. Users can switch between conversations, rename them for better organization, and the assistant maintains context for each session.
 
-- **Persistent Conversation Memory:** Leverages LangGraph's SQLite checkpointer to store conversation state, allowing sessions to be paused and resumed. A separate table stores user-defined chat titles.
+- **Persistent Memory:** Uses Docker Volumes and OpenShift PVCs (Persistent Volume Claims) to store conversation history (sqlite) and authentication tokens (token.json) permanently.
 
 - **Conversational AI Core:** Powered by LangGraph and Groq's Llama 3 for stateful, low-latency conversations.
 
@@ -63,46 +63,26 @@ The assistant operates on a router-based agentic architecture. All user input is
 
 ```mermaid
 graph TD
-    UserInput["User Input (via Web Interface)"] --> Router{"Smart Router (LangGraph)"};
-
-    Router -- route: 'calendar' --> CalendarAgent[Calendar Agent];
-    Router -- route: 'email' --> EmailAgent[Email Agent];
-    Router -- route: 'search' --> SearchAgent[Search Agent];
-    Router -- route: 'tasks' --> TaskAgent[Task Agent];
-    Router -- route: 'conversational' --> ConversationalAgent[Conversational Agent];
-
-    subgraph Calendar Workflow
-        direction LR
-        CalendarAgent -- "Needs Tool?" --> CalendarTools[Calendar Tools];
-        CalendarTools --> CalendarAgent;
-    end
+    User["User (Web Interface)"] <--> Frontend["Frontend (Next.js/Nginx)"];
+    Frontend <-->|HTTP/JSON| Backend["Backend API (FastAPI)"];
     
-     subgraph Email Workflow
-        direction LR
-        EmailAgent -- "Needs Tool?" --> EmailTools[Email Tools];
-        EmailTools --> EmailAgent;
+    subgraph "Backend Container"
+        Router{"Smart Router (LangGraph)"};
+        Backend --> Router;
+        
+        Router --> Calendar[Calendar Agent];
+        Router --> Email[Email Agent];
+        Router --> Search[Search Agent];
+        Router --> Tasks[Task Agent];
+        
+        Calendar <-->|Auth| GCal["Google Calendar API"];
+        Email <-->|Auth| GMail["Gmail API"];
+        Tasks <-->|Auth| GTasks["Google Tasks API"];
+        Search <--> Tavily["Tavily Search API"];
+        
+        DB[("SQLite (Persistent Volume)")]
+        Router -.->|Checkpoints| DB
     end
-
-    subgraph Search Workflow
-        direction LR
-        SearchAgent -- "Needs Tool?" --> SearchTools[Search Tools];
-        SearchTools --> SearchAgent;
-    end
-
-    subgraph Task Workflow
-        direction LR
-        TaskAgent -- "Needs Tool?" --> TaskTools[Task Tools];
-        TaskTools --> TaskAgent;
-    end
-
-    CalendarAgent -- "Final Answer" --> ResponseToUser["Response to User (via Web Interface)"];
-    EmailAgent -- "Final Answer" --> ResponseToUser;
-    SearchAgent -- "Final Answer" --> ResponseToUser;
-    TaskAgent -- "Final Answer" --> ResponseToUser;
-    ConversationalAgent --> ResponseToUser;
-
-    style UserInput fill:#FFFFFF,stroke:#333,stroke-width:2px
-    style ResponseToUser fill:#FFFFFF,stroke:#333,stroke-width:2px
 ```
 
 ---
@@ -134,6 +114,15 @@ graph TD
 - **Styling:** Tailwind CSS
 
 
+#### Infrastructure & DevOps:
+
+
+- **Containerization:** Docker & Docker Compose
+
+- **Orchestration:** OpenShift (CRC) / Kubernetes
+
+- **Web Server:** Nginx (serving the frontend container)
+
 #### External Services:
 
 - Google Calendar API
@@ -147,10 +136,9 @@ graph TD
 
 ---
 
+## Installation & Setup
 
-##  Setup & Installation
-
-Follow these steps to get your local environment set up and ready to run the assistant.
+Prerequisites: `Docker Desktop` installed.
 
 **1. Clone the Repository:**
 
@@ -159,99 +147,118 @@ git clone https://github.com/berkyalkn/ai-personal-assistant.git
 cd ai-personal-assistant
 ```
 
-**2. Setup Backend:**
+**2. Configure Environment & Credentials:**
+
+- **1:  Create a `.env` file in the `server/` directory.**
 
 ```bash
-# Go to the backend directory
-cd backend
-
-# Create a virtual environment (recommended)
-python -m venv venv
-# Activate it (macOS/Linux): source venv/bin/activate
-# Activate it (Windows): .\venv\Scripts\activate
-
-# Install required Python packages
-pip install -r requirements.txt
-```
-
-**3. Create and Configure the `.env` File:**
-
-- In the root of the project, create a new file named `.env`.
-
--  Copy the contents of the `.env.example` file below into your new `.env` file and fill in your own credentials.
-
-
-**.env.example:**
-
-```
-# Groq API Key for the LLM
 GROQ_API_KEY="gsk_YourGroqApiKey"
-
-# Tavily API Key for web search
 TAVILY_API_KEY="tvly-YourTavilyApiKey"
 ```
 
+- **2: Google Credentials:**
 
-**4. Configure Google API Access:**
+   - Download your OAuth 2.0 Client ID JSON from Google Cloud Console.
 
-- Go to the [Google Cloud Console](https://console.cloud.google.com/)
+   - **Important:** Ensure `http://localhost:8090/` is added to "Authorized Redirect URIs" in Google Console.
 
-- Create a new project.
+   - Save the file as `credentials.json` inside the `server/` directory.
 
-- Go to "APIs & Services" > "Library" and enable the "Google Calendar API" and the "Gmail API".
-
-- Go to "OAuth consent screen", select "External", and fill in the required app details. Add your own Google account as a "Test user".
-
-- Go to "Credentials", click "+ CREATE CREDENTIALS", and select "OAuth client ID".
-
-- Choose "Desktop app" as the application type.
-
-- After creation, click the "DOWNLOAD JSON" button.
-
-- Rename the downloaded file to `credentials.json` and place it in the root of your project directory.
-
-**Note:** The first time you run a calendar command, you will be prompted to authorize the application in your browser. This will generate a `token.json` file. This is a one-time process.
-
-**Setup Frontend:**
+   - Create empty files for persistence:
 
 ```bash
-# Go back to the root directory
-cd ..
-
-# Go to the frontend directory
-cd frontend
-
-# Install the required Node.js packages
-npm install
+touch server/token.json server/conversations.sqlite
 ```
+
+**3. Build & Run (Docker Compose):**
+
+Start the entire system with one command. This will build images, create networks, and mount volumes.
+
+```bash
+docker-compose up --build
+```
+
+
+**4. First-Time Authentication (Crucial Step!)**
+
+Since the app runs inside a container, it cannot open your browser automatically.
+
+ - 1: Check the terminal logs. You will see a link saying **"Please visit this URL to authorize..."**.
+
+ - 2: Click the link and login with your Google Account.
+
+ - 3: The redirection will be handled by the mapped port (`8090`), and the generated `token.json` will be saved to your local machine automatically via Docker Volumes.
 
 ---
 
-##  How to Run
+## Cloud Deployment (Red Hat OpenShift)
 
-You will need two separate terminal windows to run the application.
+This project includes production-ready Kubernetes manifests **for Red Hat OpenShift**.
 
-#### Terminal 1: Backend Server
+**Prerequisites:** `oc` CLI installed, logged in, and a Docker Hub account.
 
-```bash
-cd backend
-# Don’t forget to activate the virtual environment (if you're using one)
-# source venv/bin/activate
 
-# Start the FastAPI server
-uvicorn main:app_fastapi --reload --port 5001
-```
-
-#### Terminal 2: Frontend Server
+**1. Push Images to Registry**
 
 ```bash
-cd frontend
-npm run dev
+# Backend
+cd server
+docker build -t youruser/personal-assistant-backend:v1 .
+docker push youruser/personal-assistant-backend:v1
+
+# Frontend (Requires Backend URL later, push a placeholder first or skip)
 ```
 
-Once the application has started successfully, you can visit http://localhost:3000 in your browser to start using the AI Personal Assistant.
+**2. Setup Project & Secrets**
 
---- 
+```bash
+oc new-project personal-assistant
+
+# Create Secrets from your local files
+oc create secret generic backend-secrets --from-env-file=server/.env
+oc create secret generic google-credentials --from-file=server/credentials.json
+
+# Create Persistent Storage (1Gi) for DB and Tokens
+oc apply -f openshift/storage.yaml
+```
+
+**3. Deploy Backend & Sync Data**
+
+```bash
+# Deploy Backend
+ Deploy Backend
+oc apply -f openshift/backend.yaml
+
+# Wait for pod to be Running...
+# Then copy your local auth token and database to the remote persistent volume
+# (Find POD_NAME via `oc get pods`)
+oc rsync ./server/data/ POD_NAME:/app/data
+```
+
+**4. Build & Deploy Frontend**
+
+The Frontend needs the live Backend URL at build time (Static Export).
+
+- 1. Get Backend Route: `oc get route assistant-backend-route`
+
+- 2. Build Frontend:
+
+```bash
+cd client
+docker build --build-arg NEXT_PUBLIC_API_URL=http://YOUR_BACKEND_ROUTE_URL -t youruser/personal-assistant-frontend:v1 .
+docker push youruser/personal-assistant-frontend:v1
+```
+
+- 3 Deploy:
+
+```bash
+oc apply -f openshift/frontend.yaml
+```
+
+Your assistant is now live on the OpenShift Route!
+
+---
+
 
 ## Example Usage
 
