@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: assistant-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: assistant-backend
+  template:
+    metadata:
+      labels:
+        app: assistant-backend
+    spec:
+      containers:
+        - name: assistant-backend
+          image: berkayalkn/personal-assistant-backend:v2
+          ports:
+            - containerPort: 5001
+          envFrom:
+            - secretRef:
+                name: backend-secrets
+          volumeMounts:
+            - name: storage-volume
+              mountPath: /app/data
+            - name: google-creds-volume
+              mountPath: /app/credentials.json
+              subPath: credentials.json
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+      volumes:
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: assistant-storage-pvc
+        - name: google-creds-volume
+          secret:
+            secretName: google-credentials
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: assistant-backend-svc
+spec:
+  selector:
+    app: assistant-backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5001
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: assistant-backend-route
+spec:
+  to:
+    kind: Service
+    name: assistant-backend-svc
+  port:
+    targetPort: 5001
