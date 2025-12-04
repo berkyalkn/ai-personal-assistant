@@ -80,7 +80,14 @@ def _get_google_credentials():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
-            creds = flow.run_local_server(port=0)
+
+            print("Please click on the link in the terminal and log in to Google...")
+            creds = flow.run_local_server(
+                port=8090,          
+                open_browser=False,
+                bind_addr="0.0.0.0"  
+            )
+
         with open("token.json", "w") as token:
             token.write(creds.to_json())
 
