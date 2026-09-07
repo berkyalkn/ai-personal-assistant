@@ -367,8 +367,14 @@ def create_google_event(
         conflicting_events = _fetch_google_events(start_date=start_time_obj, end_date=end_time_obj)
 
         if conflicting_events:
-            conflict_summary = conflicting_events[0].get('summary', 'an existing event')
-            return f"Error: Cannot create event. There is a conflicting event at that time: '{conflict_summary}'."
+            from priority_engine import compare_conflicts
+            new_event_info = {
+                "summary": summary,
+                "start": {"dateTime": start_time_obj.isoformat()},
+                "end": {"dateTime": end_time_obj.isoformat()},
+            }
+            conflict_report = compare_conflicts(new_event_info, conflicting_events[0])
+            return json.dumps(conflict_report, indent=2)
 
         start_time_iso = start_time_obj.isoformat()
         end_time_iso = end_time_obj.isoformat()
@@ -533,6 +539,67 @@ def find_free_slot(
     except Exception as e:
         print(f"!!! An error occurred in find_free_slot: {e}")
         return json.dumps([{"error_type": "UnknownError", "details": str(e)}])
+
+
+@tool
+def check_calendar_conflicts(natural_language_date: str) -> str:
+    """
+    Checks a specific day for overlapping/conflicting calendar events and provides
+    a deterministic priority analysis for each conflict found.
+
+    Args:
+        natural_language_date (str): The day to check (e.g., "today", "tomorrow", "next Monday").
+    """
+    from priority_engine import compare_conflicts, find_overlapping_events, calculate_priority
+
+    print(f"--- Tool: check_calendar_conflicts called for '{natural_language_date}' ---")
+
+    dt_obj = _parse_natural_language_time(natural_language_date)
+    if not dt_obj:
+        return json.dumps([{"error": f"I could not understand the date: '{natural_language_date}'"}])
+
+    target_date = dt_obj.date()
+
+    try:
+        start_of_day = datetime.datetime.combine(target_date, datetime.time.min).replace(tzinfo=get_localzone())
+        end_of_day = datetime.datetime.combine(target_date, datetime.time.max).replace(tzinfo=get_localzone())
+
+        events = _fetch_google_events(
+            start_date=start_of_day.astimezone(datetime.timezone.utc),
+            end_date=end_of_day.astimezone(datetime.timezone.utc)
+        )
+
+        valid_events = [e for e in events if 'error_type' not in e and 'error' not in e]
+
+        if not valid_events:
+            return json.dumps({"conflicts": [], "message": "No events found for that day."})
+
+        overlaps = find_overlapping_events(valid_events)
+
+        if not overlaps:
+            # No conflicts — still return priority scores for all events
+            event_priorities = [calculate_priority(ev) for ev in valid_events]
+            return json.dumps({
+                "conflicts": [],
+                "message": f"No conflicts found. You have {len(valid_events)} event(s) that day.",
+                "all_events": event_priorities
+            }, indent=2)
+
+        # Build conflict reports
+        conflict_reports = []
+        for ev_a, ev_b in overlaps:
+            report = compare_conflicts(ev_a, ev_b)
+            conflict_reports.append(report)
+
+        return json.dumps({
+            "conflicts_found": len(conflict_reports),
+            "conflicts": conflict_reports,
+        }, indent=2)
+
+    except Exception as e:
+        print(f"!!! Error in check_calendar_conflicts: {e}")
+        return json.dumps([{"error_type": "UnknownError", "details": str(e)}])
+
 
 @tool
 def update_google_event(
@@ -1025,7 +1092,8 @@ calendar_tools = [
     delete_google_event,
     get_events_for_range,
     update_google_event,
-    find_free_slot]
+    find_free_slot,
+    check_calendar_conflicts]
 
 email_tools = [
     search_emails,
@@ -1130,6 +1198,8 @@ Your instructions are:
     1. First, find the specific event the user is referring to and get its `event_id`. If there is any ambiguity (e.g., multiple events with the same name), you MUST ask the user to clarify which one they mean.
     2. Second, clearly state the action you are about to take (e.g., "So, you want to move 'Project Sync' to 4 PM?") and ask for explicit confirmation.
     3. Only after the user has clearly confirmed (e.g., "Yes, please do"), you may call the appropriate tool.
+- **For checking conflicts:** If the user asks about conflicts, overlapping events, or scheduling clashes (e.g., "Do I have any conflicts tomorrow?", "Are there overlapping meetings today?"), use the `check_calendar_conflicts` tool.
+- **When a conflict is detected during event creation:** The `create_google_event` tool will return a detailed priority comparison. You MUST present both events' priority scores and the recommendation to the user in a clear, formatted way. Do NOT automatically reschedule or delete — only recommend.
 {GENERAL_RULES}
 """
 
