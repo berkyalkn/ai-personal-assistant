@@ -343,7 +343,9 @@ def create_google_event(
     attendees: Optional[List[str]] = None
 ) -> str:
     """
-    Creates a new event on Google Calendar using natural language for the start time after checking for conflicts.
+    Creates a new event on Google Calendar using natural language for the start time.
+    This tool checks for conflicts and passes through the risk engine.
+    If confirmation is required, it returns a pending action for user approval.
 
     Args:
         summary (str): The title or summary of the event.
@@ -353,6 +355,8 @@ def create_google_event(
         location (Optional[str]): The physical location of the event.
         attendees (Optional[List[str]]): A list of attendee email addresses to invite.
     """
+    from risk_engine import assess_risk, store_pending_action
+    from priority_engine import compare_conflicts
 
     print(f"--- Tool: create_google_event received natural language query: '{start_time_natural}' ---")
 
@@ -362,69 +366,149 @@ def create_google_event(
         return f"Error: I could not understand the start time '{start_time_natural}'."
 
     end_time_obj = start_time_obj + datetime.timedelta(minutes=duration_minutes)
-    
-    try:
-        conflicting_events = _fetch_google_events(start_date=start_time_obj, end_date=end_time_obj)
 
-        if conflicting_events:
-            from priority_engine import compare_conflicts
+    try:
+        # Check for conflicts
+        conflicting_events = _fetch_google_events(start_date=start_time_obj, end_date=end_time_obj)
+        has_conflict = bool(conflicting_events)
+
+        # Assess risk
+        risk = assess_risk("create_event", conflict_detected=has_conflict)
+        print(f"--- Risk Assessment: {risk['risk_level']} / {risk['autonomy_level']} ---")
+
+        # Build conflict report if applicable
+        conflict_report = None
+        if has_conflict:
             new_event_info = {
                 "summary": summary,
                 "start": {"dateTime": start_time_obj.isoformat()},
                 "end": {"dateTime": end_time_obj.isoformat()},
             }
             conflict_report = compare_conflicts(new_event_info, conflicting_events[0])
-            return json.dumps(conflict_report, indent=2)
 
-        start_time_iso = start_time_obj.isoformat()
-        end_time_iso = end_time_obj.isoformat()
+        # If confirmation required → store pending action
+        if risk["requires_confirmation"]:
+            action_args = {
+                "summary": summary,
+                "start_time_iso": start_time_obj.isoformat(),
+                "end_time_iso": end_time_obj.isoformat(),
+                "duration_minutes": duration_minutes,
+                "description": description,
+                "location": location,
+                "attendees": attendees,
+            }
+            action_id = store_pending_action(
+                action_type="create_event",
+                action_args=action_args,
+                risk_assessment=risk,
+                description=f"Create event '{summary}' on {start_time_obj.strftime('%Y-%m-%d %H:%M')}",
+            )
+            result = {
+                "status": "confirmation_required",
+                "action_id": action_id,
+                "risk_assessment": risk,
+                "event_details": {
+                    "summary": summary,
+                    "start": start_time_obj.strftime('%Y-%m-%d %H:%M'),
+                    "end": end_time_obj.strftime('%Y-%m-%d %H:%M'),
+                    "duration_minutes": duration_minutes,
+                    "description": description,
+                    "location": location,
+                },
+                "message": f"To approve, use action ID: {action_id}",
+            }
+            if conflict_report:
+                result["conflict_report"] = conflict_report
+            return json.dumps(result, indent=2)
 
-        print(f"--- Finalizing API Call with: summary='{summary}', start='{start_time_iso}', end='{end_time_iso}', description='{description}', location='{location}', attendees='{attendees}' ---")
-
-        creds = _get_google_credentials()
-        service = build("calendar", "v3", credentials=creds)
-        
-        local_timezone = str(get_localzone())
-        
-        event_body = {
-            'summary': summary,
-            'start': {'dateTime': start_time_iso, 'timeZone': str(get_localzone())},
-            'end': {'dateTime': end_time_iso, 'timeZone': str(get_localzone())},
-        }
-
-        if description:
-            event_body['description'] = description
-        
-        if location:
-            event_body['location'] = location
-        
-        if attendees:
-            event_body['attendees'] = [{'email': email} for email in attendees]
-
-        created_event = service.events().insert(calendarId='primary', body=event_body).execute()
-        
-        print(f"--- Success: Event created. ID: {created_event.get('id')} ---")
-        return f"Success! Event '{summary}' was created for {start_time_obj.strftime('%Y-%m-%d %H:%M')}."
+        # AUTO_EXECUTE — proceed immediately
+        return _execute_create_event(
+            summary, start_time_obj, end_time_obj,
+            description, location, attendees
+        )
 
     except Exception as e:
         print(f"!!! Google Calendar Write Error: {e}")
         return f"An error occurred while creating the event in Google Calendar: {e}"
 
 
+def _execute_create_event(
+    summary: str,
+    start_time_obj: datetime.datetime,
+    end_time_obj: datetime.datetime,
+    description: Optional[str] = None,
+    location: Optional[str] = None,
+    attendees: Optional[List[str]] = None,
+) -> str:
+    """Internal function that actually executes the Google Calendar create API call."""
+    start_time_iso = start_time_obj.isoformat()
+    end_time_iso = end_time_obj.isoformat()
+
+    print(f"--- Executing create: summary='{summary}', start='{start_time_iso}', end='{end_time_iso}' ---")
+
+    creds = _get_google_credentials()
+    service = build("calendar", "v3", credentials=creds)
+
+    event_body = {
+        'summary': summary,
+        'start': {'dateTime': start_time_iso, 'timeZone': str(get_localzone())},
+        'end': {'dateTime': end_time_iso, 'timeZone': str(get_localzone())},
+    }
+
+    if description:
+        event_body['description'] = description
+    if location:
+        event_body['location'] = location
+    if attendees:
+        event_body['attendees'] = [{'email': email} for email in attendees]
+
+    created_event = service.events().insert(calendarId='primary', body=event_body).execute()
+
+    print(f"--- Success: Event created. ID: {created_event.get('id')} ---")
+    return f"Success! Event '{summary}' was created for {start_time_obj.strftime('%Y-%m-%d %H:%M')}."
+
+
 
 @tool
 def delete_google_event(event_id: str, summary: str) -> str:
-    """Deletes an event from the calendar using its unique ID."""
+    """Deletes an event from the calendar using its unique ID.
+    This is a HIGH risk action — it always requires user confirmation before executing."""
+    from risk_engine import assess_risk, store_pending_action
 
     print(f"--- Tool: delete_google_event called for ID: {event_id} ---")
 
+    # Assess risk — delete is always HIGH
+    risk = assess_risk("delete_event")
+    print(f"--- Risk Assessment: {risk['risk_level']} / {risk['autonomy_level']} ---")
+
+    # Always requires confirmation for delete
+    if risk["requires_confirmation"]:
+        action_id = store_pending_action(
+            action_type="delete_event",
+            action_args={"event_id": event_id, "summary": summary},
+            risk_assessment=risk,
+            description=f"Delete event '{summary}' (ID: {event_id})",
+        )
+        return json.dumps({
+            "status": "confirmation_required",
+            "action_id": action_id,
+            "risk_assessment": risk,
+            "event_details": {"event_id": event_id, "summary": summary},
+            "message": f"🗑️ Deleting '{summary}' is irreversible. To confirm, approve action ID: {action_id}",
+        }, indent=2)
+
+    # Fallback (should not reach here for delete, but safe)
+    return _execute_delete_event(event_id, summary)
+
+
+def _execute_delete_event(event_id: str, summary: str) -> str:
+    """Internal function that actually executes the Google Calendar delete API call."""
     try:
         creds = _get_google_credentials()
         service = build("calendar", "v3", credentials=creds)
         service.events().delete(calendarId='primary', eventId=event_id).execute()
-
+        print(f"--- Success: Event '{summary}' deleted. ---")
         return f"The event '{summary}' was successfully deleted."
-
     except Exception as e:
         return f"An error occurred while deleting the event: {e}"
 
@@ -612,13 +696,70 @@ def update_google_event(
     new_attendees: Optional[List[str]] = None
     ) -> str:
     """
-    Updates an existing Google Calendar event using its unique ID. 
+    Updates an existing Google Calendar event using its unique ID.
     Accepts natural language for the new start time.
-    If only a new start time is provided, the original duration is maintained
+    This tool passes through the risk engine — time changes are HIGH risk.
+    If confirmation is required, it returns a pending action for user approval.
     """
+    from risk_engine import assess_risk, store_pending_action
 
     print(f"--- Tool: update_google_event called for ID: {event_id} ---")
 
+    has_time_change = new_start_time_natural is not None
+
+    # Assess risk
+    risk = assess_risk("update_event", time_change=has_time_change)
+    print(f"--- Risk Assessment: {risk['risk_level']} / {risk['autonomy_level']} ---")
+
+    if risk["requires_confirmation"]:
+        action_args = {
+            "event_id": event_id,
+            "new_summary": new_summary,
+            "new_start_time_natural": new_start_time_natural,
+            "new_duration_minutes": new_duration_minutes,
+            "new_description": new_description,
+            "new_location": new_location,
+            "new_attendees": new_attendees,
+        }
+        changes = []
+        if new_summary: changes.append(f"title → '{new_summary}'")
+        if new_start_time_natural: changes.append(f"time → '{new_start_time_natural}'")
+        if new_duration_minutes: changes.append(f"duration → {new_duration_minutes} min")
+        if new_description: changes.append("description updated")
+        if new_location: changes.append(f"location → '{new_location}'")
+        changes_str = ", ".join(changes) if changes else "no changes specified"
+
+        action_id = store_pending_action(
+            action_type="update_event",
+            action_args=action_args,
+            risk_assessment=risk,
+            description=f"Update event (ID: {event_id}): {changes_str}",
+        )
+        return json.dumps({
+            "status": "confirmation_required",
+            "action_id": action_id,
+            "risk_assessment": risk,
+            "proposed_changes": changes_str,
+            "message": f"To approve these changes, confirm action ID: {action_id}",
+        }, indent=2)
+
+    # AUTO_EXECUTE (should not normally happen for update, but safe fallback)
+    return _execute_update_event(
+        event_id, new_summary, new_start_time_natural,
+        new_duration_minutes, new_description, new_location, new_attendees
+    )
+
+
+def _execute_update_event(
+    event_id: str,
+    new_summary: Optional[str] = None,
+    new_start_time_natural: Optional[str] = None,
+    new_duration_minutes: Optional[int] = None,
+    new_description: Optional[str] = None,
+    new_location: Optional[str] = None,
+    new_attendees: Optional[List[str]] = None,
+) -> str:
+    """Internal function that actually executes the Google Calendar update API call."""
     try:
         creds = _get_google_credentials()
         service = build("calendar", "v3", credentials=creds)
@@ -629,13 +770,10 @@ def update_google_event(
 
         if new_summary:
             update_body['summary'] = new_summary
-
         if new_description:
             update_body['description'] = new_description
-            
         if new_location:
             update_body['location'] = new_location
-            
         if new_attendees is not None:
             update_body['attendees'] = [{'email': email} for email in new_attendees]
 
@@ -643,7 +781,7 @@ def update_google_event(
             new_start_obj = _parse_natural_language_time(new_start_time_natural)
             if not new_start_obj:
                 return f"Error: I could not understand the new start time '{new_start_time_natural}'."
-            
+
             if new_duration_minutes:
                 new_end_obj = new_start_obj + datetime.timedelta(minutes=new_duration_minutes)
             else:
@@ -654,16 +792,17 @@ def update_google_event(
 
             update_body['start'] = {'dateTime': new_start_obj.isoformat(), 'timeZone': str(get_localzone())}
             update_body['end'] = {'dateTime': new_end_obj.isoformat(), 'timeZone': str(get_localzone())}
-        
+
         if not update_body:
             return "Error: No update information was provided for the event."
 
         updated_event = service.events().patch(
-            calendarId='primary', 
-            eventId=event_id, 
+            calendarId='primary',
+            eventId=event_id,
             body=update_body
         ).execute()
 
+        print(f"--- Success: Event '{updated_event.get('summary')}' updated. ---")
         return f"Success! Event '{updated_event.get('summary')}' was updated."
 
     except HttpError as err:
@@ -672,6 +811,67 @@ def update_google_event(
         return f"An API error occurred: {err}"
     except Exception as e:
         return f"An unexpected error occurred while updating the event: {e}"
+
+
+@tool
+def approve_pending_action(action_id: str) -> str:
+    """Approves and executes a previously gated calendar action using its action_id.
+    Call this tool when the user explicitly confirms or approves a pending action.
+    """
+    from risk_engine import get_pending_action, remove_pending_action
+
+    print(f"--- Tool: approve_pending_action called for ID: {action_id} ---")
+    action = get_pending_action(action_id)
+    if not action:
+        return f"Error: No pending action found with ID '{action_id}'. It may have already been executed, rejected, or expired."
+
+    action_type = action.get("action_type")
+    action_args = action.get("action_args", {})
+
+    try:
+        if action_type == "create_event":
+            start_time_obj = parse(action_args["start_time_iso"])
+            end_time_obj = parse(action_args["end_time_iso"])
+            result = _execute_create_event(
+                summary=action_args["summary"],
+                start_time_obj=start_time_obj,
+                end_time_obj=end_time_obj,
+                description=action_args.get("description"),
+                location=action_args.get("location"),
+                attendees=action_args.get("attendees"),
+            )
+        elif action_type == "delete_event":
+            result = _execute_delete_event(
+                event_id=action_args["event_id"],
+                summary=action_args.get("summary", "Event"),
+            )
+        elif action_type == "update_event":
+            result = _execute_update_event(**action_args)
+        else:
+            return f"Error: Unknown action type '{action_type}' in pending action."
+
+        # Remove action once successfully executed
+        remove_pending_action(action_id)
+        return f"Action {action_id} approved and executed successfully.\n{result}"
+
+    except Exception as e:
+        return f"An error occurred while executing approved action {action_id}: {e}"
+
+
+@tool
+def reject_pending_action(action_id: str) -> str:
+    """Rejects and cancels a previously gated calendar action using its action_id.
+    Call this tool when the user declines or rejects a pending action.
+    """
+    from risk_engine import remove_pending_action
+
+    print(f"--- Tool: reject_pending_action called for ID: {action_id} ---")
+    action = remove_pending_action(action_id)
+    if not action:
+        return f"Error: No pending action found with ID '{action_id}'. It may have already been rejected or expired."
+
+    desc = action.get("description", action_id)
+    return f"Action '{desc}' (ID: {action_id}) has been rejected and will not be executed."
 
 
 
@@ -1093,7 +1293,9 @@ calendar_tools = [
     get_events_for_range,
     update_google_event,
     find_free_slot,
-    check_calendar_conflicts]
+    check_calendar_conflicts,
+    approve_pending_action,
+    reject_pending_action]
 
 email_tools = [
     search_emails,
@@ -1197,9 +1399,15 @@ Your instructions are:
 - CRITICAL RULE for updates and deletions: You are FORBIDDEN from calling `update_google_event` or `delete_google_event` until you have followed this exact sequence:
     1. First, find the specific event the user is referring to and get its `event_id`. If there is any ambiguity (e.g., multiple events with the same name), you MUST ask the user to clarify which one they mean.
     2. Second, clearly state the action you are about to take (e.g., "So, you want to move 'Project Sync' to 4 PM?") and ask for explicit confirmation.
-    3. Only after the user has clearly confirmed (e.g., "Yes, please do"), you may call the appropriate tool.
 - **For checking conflicts:** If the user asks about conflicts, overlapping events, or scheduling clashes (e.g., "Do I have any conflicts tomorrow?", "Are there overlapping meetings today?"), use the `check_calendar_conflicts` tool.
 - **When a conflict is detected during event creation:** The `create_google_event` tool will return a detailed priority comparison. You MUST present both events' priority scores and the recommendation to the user in a clear, formatted way. Do NOT automatically reschedule or delete — only recommend.
+- **Confidence-Gated Autonomy Rules:**
+    - All calendar write actions (`create_google_event`, `delete_google_event`, `update_google_event`) are evaluated by a deterministic risk engine.
+    - When an action requires confirmation, the tool returns a JSON response with `"status": "confirmation_required"`, including an `action_id`, `risk_assessment`, and `message`.
+    - When you receive this confirmation request, you MUST present the details clearly to the user (what will happen, the risk level, and reasons) and ask for their confirmation. State the action ID clearly.
+    - When the user confirms / approves (e.g., "Yes", "Go ahead", "I approve", "Confirm"), you MUST call `approve_pending_action(action_id=...)`. DO NOT re-call the creation or deletion tools directly.
+    - When the user rejects / declines (e.g., "No", "Cancel", "Don't do it"), you MUST call `reject_pending_action(action_id=...)`.
+    - Never attempt to bypass the risk engine.
 {GENERAL_RULES}
 """
 
