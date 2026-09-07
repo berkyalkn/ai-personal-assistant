@@ -32,6 +32,7 @@ from email.mime.text import MIMEText
 from langchain_core.tools import tool
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage
 from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 from langchain_tavily import TavilySearch
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
@@ -42,7 +43,11 @@ from langchain_core.messages import ToolCall
 from IPython.display import Image, display
 
 load_dotenv()
+# Also look in parent and current directories to be certain
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
+openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
 groq_api_key = os.getenv("GROQ_API_KEY")
 tavily_api_key = os.getenv("TAVILY_API_KEY") 
 
@@ -52,23 +57,29 @@ SCOPES = [
     "https://www.googleapis.com/auth/tasks"
 ]
 
-if not all([groq_api_key, tavily_api_key]):
-    raise ValueError("One or more required API keys (GROQ, TAVILY) are missing from the .env file!")
+if not openrouter_api_key and not groq_api_key:
+    raise ValueError("OPENROUTER_API_KEY (or GROQ_API_KEY) is missing from the .env file!")
+if not tavily_api_key:
+    raise ValueError("TAVILY_API_KEY is missing from the .env file!")
 
 
-# For high-quality, reliable, and rule-following responses (the 70b model).
-# Use this for testing complex workflows. 
-llm = ChatGroq(model="llama-3.3-70b-versatile", api_key=groq_api_key, temperature=0)
-
-# For rapid development and simple tests (the 8b model).
-# Note: This model is much faster but may not follow complex instructions as precisely.
-#llm = ChatGroq(model="llama-3.1-8b-instant", api_key=groq_api_key, temperature=0)
-
-
-print("Groq LLM (Llama) configured and ready.")
+# Using nvidia/nemotron-3.5-lightning:free from OpenRouter
+if openrouter_api_key:
+    llm = ChatOpenAI(
+        model="nvidia/nemotron-3.5-lightning:free",
+        openai_api_key=openrouter_api_key,
+        openai_api_base="https://openrouter.ai/api/v1",
+        temperature=0
+    )
+    print("OpenRouter LLM (nvidia/nemotron-3.5-lightning:free) configured and ready.")
+else:
+    llm = ChatGroq(model="openai/gpt-oss-120b", api_key=groq_api_key, temperature=0)
+    print("Groq LLM configured and ready.")
 
 def _get_google_credentials():
     """Gets valid Google API credentials, refreshing if necessary."""
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    from urllib.parse import urlparse, parse_qs
 
     creds = None
 
@@ -80,13 +91,53 @@ def _get_google_credentials():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+            flow.redirect_uri = "http://localhost:8090/oauth2callback"
 
-            print("Please click on the link in the terminal and log in to Google...")
-            creds = flow.run_local_server(
-                port=8090,          
-                open_browser=False,
-                bind_addr="0.0.0.0"  
-            )
+            auth_url, _ = flow.authorization_url(prompt='consent')
+            print(f"\n{'='*60}")
+            print("Please visit this URL to authorize the application:")
+            print(f"\n{auth_url}\n")
+            print(f"{'='*60}\n")
+
+            authorization_code = None
+
+            class OAuthCallbackHandler(BaseHTTPRequestHandler):
+                def do_GET(self):
+                    nonlocal authorization_code
+                    parsed = urlparse(self.path)
+                    if parsed.path == "/oauth2callback":
+                        query = parse_qs(parsed.query)
+                        if 'code' in query:
+                            authorization_code = query['code'][0]
+                            self.send_response(200)
+                            self.send_header('Content-Type', 'text/html')
+                            self.end_headers()
+                            self.wfile.write(
+                                b'<html><body><h1>Authorization successful!</h1>'
+                                b'<p>You can close this tab and return to the app.</p></body></html>'
+                            )
+                        else:
+                            self.send_response(400)
+                            self.send_header('Content-Type', 'text/html')
+                            self.end_headers()
+                            self.wfile.write(b'<html><body><h1>Authorization failed.</h1></body></html>')
+                    else:
+                        self.send_response(404)
+                        self.end_headers()
+
+                def log_message(self, format, *args):
+                    pass
+
+            server = HTTPServer(('0.0.0.0', 8090), OAuthCallbackHandler)
+            print("Waiting for authorization on http://localhost:8090/oauth2callback ...")
+            server.handle_request()
+            server.server_close()
+
+            if authorization_code:
+                flow.fetch_token(code=authorization_code)
+                creds = flow.credentials
+            else:
+                raise RuntimeError("Failed to receive authorization code from Google.")
 
         with open("token.json", "w") as token:
             token.write(creds.to_json())
